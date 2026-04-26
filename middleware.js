@@ -10,7 +10,8 @@ const RESERVED = new Set([
   'favicon.ico',
   'robots.txt',
   'uploads',
-  'media'
+  'media',
+  'data-deletion'
 ]);
 
 export function middleware(request) {
