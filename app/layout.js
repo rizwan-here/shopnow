@@ -32,7 +32,12 @@ export const metadata = {
 export default function RootLayout({ children }) {
   return (
     <html lang="en" className={`${sans.variable} ${display.variable}`}>
-      <body>
+      <head>
+        <meta
+          name="facebook-domain-verification"
+          content="d0m2yvyu2yon2dncmzyxbfy3wpn948"
+        />
+      </head>
         <AuthSessionProvider>
           {children}
           <GlobalFooter />
