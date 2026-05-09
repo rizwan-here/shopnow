@@ -18,15 +18,7 @@ const display = Playfair_Display({
 export const metadata = {
   title: 'Shopnow',
   description: 'Fashion-forward social storefronts for independent sellers',
-  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'),
-  icons: {
-    icon: [
-      { url: '/favicon-32x32.png', sizes: '32x32', type: 'image/png' },
-      { url: '/favicon-16x16.png', sizes: '16x16', type: 'image/png' }
-    ],
-    apple: '/apple-touch-icon.png',
-    shortcut: '/favicon-32x32.png'
-  }
+  metadataBase: new URL('https://shopnow-341d.onrender.com')
 };
 
 export default function RootLayout({ children }) {
@@ -38,6 +30,7 @@ export default function RootLayout({ children }) {
           content="d0m2yvyu2yon2dncmzyxbfy3wpn948"
         />
       </head>
+      <body>
         <AuthSessionProvider>
           {children}
           <GlobalFooter />
