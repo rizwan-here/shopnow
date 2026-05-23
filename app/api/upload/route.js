@@ -98,12 +98,19 @@ export async function POST(request) {
     body: cloudinaryForm
   });
 
-  const uploadResult = await uploadResponse.json();
+  const uploadResult = await uploadResponse.json().catch(() => ({}));
 
   if (!uploadResponse.ok) {
     return NextResponse.json(
       { error: uploadResult?.error?.message || 'Cloudinary upload failed.' },
       { status: uploadResponse.status }
+    );
+  }
+
+  if (!uploadResult?.secure_url) {
+    return NextResponse.json(
+      { error: 'Cloudinary upload succeeded but no secure URL was returned.' },
+      { status: 502 }
     );
   }
 

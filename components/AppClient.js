@@ -249,11 +249,22 @@ export default function AppClient({ initialData, initialMode = 'dashboard', stor
     const formData = new FormData();
     formData.append('file', file);
     formData.append('folder', folder);
-    const response = await fetch('/api/upload', { method: 'POST', body: formData });
-    const data = await response.json();
+
+    const response = await fetch('/api/upload', {
+      method: 'POST',
+      body: formData,
+      cache: 'no-store'
+    });
+    const data = await response.json().catch(() => ({}));
+
     if (!response.ok) {
       throw new Error(data?.error || 'Upload failed');
     }
+
+    if (!data?.url) {
+      throw new Error('Upload finished but no image URL was returned.');
+    }
+
     return data.url;
   }
 
@@ -435,6 +446,11 @@ export default function AppClient({ initialData, initialMode = 'dashboard', stor
   }
 
   async function submitProduct({ shouldPost = false, captionOverride = '' } = {}) {
+    if (uploadingField) {
+      setToast('Please wait for the image upload to finish before saving.');
+      return;
+    }
+
     const isEditing = Boolean(editingProduct?._id);
     const response = await fetch(isEditing ? `/api/products/${editingProduct._id}` : '/api/products', {
       method: isEditing ? 'PATCH' : 'POST',
@@ -476,6 +492,11 @@ export default function AppClient({ initialData, initialMode = 'dashboard', stor
   }
 
   function openFacebookPostPreview() {
+    if (uploadingField) {
+      setToast('Please wait for the image upload to finish before posting.');
+      return;
+    }
+
     const caption = buildFacebookCaptionPreview({
       product: productForm,
       profile: store.profile,
@@ -488,6 +509,11 @@ export default function AppClient({ initialData, initialMode = 'dashboard', stor
   }
 
   async function confirmSaveAndPost() {
+    if (uploadingField) {
+      setToast('Please wait for the image upload to finish before posting.');
+      return;
+    }
+
     await submitProduct({ shouldPost: true, captionOverride: facebookCaption });
   }
 
@@ -601,18 +627,39 @@ export default function AppClient({ initialData, initialMode = 'dashboard', stor
     await signOut({ callbackUrl: '/' });
   }
 
-  async function handleProfileSave(event) {
-    event.preventDefault();
-    await fetch('/api/profile', {
+  async function saveProfile(profileUpdates) {
+    const nextProfile = { ...(store.profile || {}), ...profileUpdates };
+    const response = await fetch('/api/profile', {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(store.profile)
+      body: JSON.stringify(nextProfile)
     });
-    const updated = await refreshStore();
-    setToast('Profile updated');
+    const data = await response.json().catch(() => ({}));
 
-    if (currentView === 'storefront' && updated.profile.slug !== activeStoreSlug) {
-      window.history.replaceState({}, '', `/${updated.profile.slug}`);
+    if (!response.ok) {
+      throw new Error(data?.error || data?.message || 'Could not save profile');
+    }
+
+    setStore((current) => ({
+      ...current,
+      profile: data || nextProfile
+    }));
+
+    return data || nextProfile;
+  }
+
+  async function handleProfileSave(event) {
+    event.preventDefault();
+    try {
+      const updatedProfile = await saveProfile(store.profile || {});
+      await refreshStore();
+      setToast('Profile updated');
+
+      if (currentView === 'storefront' && updatedProfile.slug !== activeStoreSlug) {
+        window.history.replaceState({}, '', `/${updatedProfile.slug}`);
+      }
+    } catch (error) {
+      setToast(error.message || 'Could not save profile');
     }
   }
 
@@ -717,11 +764,12 @@ export default function AppClient({ initialData, initialMode = 'dashboard', stor
     try {
       setUploadingField(field);
       const url = await uploadImage(file, folder);
+      const savedProfile = await saveProfile({ [field]: url });
       setStore((current) => ({
         ...current,
-        profile: { ...(current.profile || {}), [field]: url }
+        profile: savedProfile || { ...(current.profile || {}), [field]: url }
       }));
-      setToast('Image uploaded');
+      setToast('Image uploaded and saved');
     } catch (error) {
       setToast(error.message || 'Upload failed');
     } finally {
@@ -1168,7 +1216,7 @@ export default function AppClient({ initialData, initialMode = 'dashboard', stor
                 </label>
                 <label className="field">
                   <span>Store profile picture</span>
-                  <input type="file" accept="image/*" onChange={(event) => handleProfileImageSelected('profilePicture', 'branding', event)} />
+                  <input type="file" accept="image/*" disabled={Boolean(uploadingField)} onChange={(event) => handleProfileImageSelected('profilePicture', 'branding', event)} />
                   {uploadingField === 'profilePicture' && <small className="muted">Uploading...</small>}
                   {store.profile?.profilePicture && <img src={store.profile.profilePicture} alt="Profile" style={{ width: 84, height: 84, objectFit: 'cover', borderRadius: '50%', marginTop: '0.5rem' }} />}
                 </label>
@@ -1435,13 +1483,13 @@ export default function AppClient({ initialData, initialMode = 'dashboard', stor
               </label>
               <label className="field">
                 <span>Store logo</span>
-                <input type="file" accept="image/*" onChange={(event) => handleProfileImageSelected('storeLogo', 'branding', event)} />
+                <input type="file" accept="image/*" disabled={Boolean(uploadingField)} onChange={(event) => handleProfileImageSelected('storeLogo', 'branding', event)} />
                 {uploadingField === 'storeLogo' && <small className="muted">Uploading...</small>}
                 {store.profile?.storeLogo && <img src={store.profile.storeLogo} alt="Logo" style={{ width: 96, height: 96, objectFit: 'cover', borderRadius: '1rem', marginTop: '0.5rem' }} />}
               </label>
               <label className="field">
                 <span>Store banner</span>
-                <input type="file" accept="image/*" onChange={(event) => handleProfileImageSelected('storeBanner', 'branding', event)} />
+                <input type="file" accept="image/*" disabled={Boolean(uploadingField)} onChange={(event) => handleProfileImageSelected('storeBanner', 'branding', event)} />
                 {uploadingField === 'storeBanner' && <small className="muted">Uploading...</small>}
                 {store.profile?.storeBanner && <img src={store.profile.storeBanner} alt="Banner" style={{ width: '100%', maxWidth: 320, height: 120, objectFit: 'cover', borderRadius: '1rem', marginTop: '0.5rem' }} />}
               </label>
@@ -2081,7 +2129,7 @@ export default function AppClient({ initialData, initialMode = 'dashboard', stor
                         </label>
                         <label className="field">
                           <span>Variation photo</span>
-                          <input type="file" accept="image/*" onChange={(event) => handleVarietyImageSelected(index, event)} />
+                          <input type="file" accept="image/*" disabled={Boolean(uploadingField)} onChange={(event) => handleVarietyImageSelected(index, event)} />
                           {uploadingField === `varietyImage-${index}` && <small className="muted">Uploading...</small>}
                           {item.imageUrl && <img src={item.imageUrl} alt={item.name || 'Variation'} className="variety-preview-image" />}
                         </label>
@@ -2137,7 +2185,7 @@ export default function AppClient({ initialData, initialMode = 'dashboard', stor
 
               <label className="field">
                 <span>Product image</span>
-                <input type="file" accept="image/*" onChange={handleProductImageSelected} />
+                <input type="file" accept="image/*" disabled={Boolean(uploadingField)} onChange={handleProductImageSelected} />
                 {uploadingField === 'productImage' && <small className="muted">Uploading...</small>}
                 {productForm.imageUrl && <img src={productForm.imageUrl} alt="Preview" style={{ width: 120, height: 120, objectFit: 'cover', borderRadius: '1rem', marginTop: '0.5rem' }} />}
               </label>
@@ -2153,11 +2201,11 @@ export default function AppClient({ initialData, initialMode = 'dashboard', stor
                   Cancel
                 </button>
                 {facebookState.connected ? (
-                  <button className="soft-button-secondary button-with-icon" type="button" onClick={openFacebookPostPreview}>
+                  <button className="soft-button-secondary button-with-icon" type="button" disabled={Boolean(uploadingField)} onClick={openFacebookPostPreview}>
                     <ButtonIcon symbol="f" />{editingProduct ? 'Save and post' : 'Add and post'}
                   </button>
                 ) : null}
-                <button className="soft-button button-with-icon" type="submit" onClick={() => setProductSaveMode('save')}>
+                <button className="soft-button button-with-icon" type="submit" disabled={Boolean(uploadingField)} onClick={() => setProductSaveMode('save')}>
                   <ButtonIcon symbol={editingProduct ? '✓' : '＋'} />{editingProduct ? 'Save product' : 'Add product'}
                 </button>
               </div>
@@ -2189,7 +2237,7 @@ export default function AppClient({ initialData, initialMode = 'dashboard', stor
               <button className="soft-button-ghost" type="button" onClick={() => setModal('product')}>
                 Back to product
               </button>
-              <button className="soft-button-secondary button-with-icon" type="button" onClick={confirmSaveAndPost}>
+              <button className="soft-button-secondary button-with-icon" type="button" disabled={Boolean(uploadingField)} onClick={confirmSaveAndPost}>
                 <ButtonIcon symbol="f" />Publish to Facebook
               </button>
             </div>
