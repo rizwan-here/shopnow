@@ -135,6 +135,7 @@ export default function AppClient({ initialData, initialMode = 'dashboard', stor
   const [facebookState, setFacebookState] = useState({ connected: false, pages: [], selectedPageId: '', selectedPageName: '', connectedAt: null, loading: false });
   const [productSaveMode, setProductSaveMode] = useState('save');
   const [facebookCaption, setFacebookCaption] = useState('');
+  const facebookAuthEnabled = false;
   const [categoryName, setCategoryName] = useState('');
   const [checkoutForm, setCheckoutForm] = useState(INITIAL_CHECKOUT);
   const [orderSearchQuery, setOrderSearchQuery] = useState('');
@@ -980,7 +981,7 @@ export default function AppClient({ initialData, initialMode = 'dashboard', stor
           <div className="container store-nav-inner store-nav-actions" style={{ minHeight: 70 }}>
             <BrandMark size="store" />
             <div className="inline-row">
-              {loggedIn && (
+              {isSellerPreview && (
                 <button className="soft-button-ghost button-with-icon" onClick={() => setCurrentView('dashboard')}>
                   <ButtonIcon symbol="◫" />Dashboard
                 </button>
@@ -1683,28 +1684,32 @@ export default function AppClient({ initialData, initialMode = 'dashboard', stor
           <div className="soft-card auth-choice-card" id="signup-options">
             <div className="landing-pill">Sign up</div>
             <h2>Create a new <span className="headline-emphasis">store</span></h2>
-            <p className="muted">Use a Google or Facebook account that is not already linked to an existing Shopnow store. After sign up, you will choose your unique username.</p>
+            <p className="muted">Use a Google account that is not already linked to an existing Shopnow store. After sign up, you will choose your unique username.</p>
             <div className="auth-buttons">
               <button className="soft-button button-with-icon" onClick={() => signIn('google', { callbackUrl: '/dashboard?intent=signup' })}>
                 <ButtonIcon symbol="G" />Sign up with Google
               </button>
-              <button className="soft-button-secondary button-with-icon" onClick={() => signIn('facebook', { callbackUrl: '/dashboard?intent=signup' })}>
-                <ButtonIcon symbol="f" />Sign up with Facebook
-              </button>
+              {facebookAuthEnabled && (
+                <button className="soft-button-secondary button-with-icon" onClick={() => signIn('facebook', { callbackUrl: '/dashboard?intent=signup' })}>
+                  <ButtonIcon symbol="f" />Sign up with Facebook
+                </button>
+              )}
             </div>
           </div>
 
           <div className="soft-card auth-choice-card" id="login-options">
             <div className="landing-pill landing-pill-outline">Log in</div>
             <h2>Access your <span className="headline-emphasis">existing dashboard</span></h2>
-            <p className="muted">Use the same Google or Facebook account you used when you created your Shopnow store.</p>
+            <p className="muted">Use the same Google account you used when you created your Shopnow store.</p>
             <div className="auth-buttons">
               <button className="soft-button button-with-icon" onClick={() => signIn('google', { callbackUrl: '/dashboard?intent=login' })}>
                 <ButtonIcon symbol="G" />Log in with Google
               </button>
-              <button className="soft-button-secondary button-with-icon" onClick={() => signIn('facebook', { callbackUrl: '/dashboard?intent=login' })}>
-                <ButtonIcon symbol="f" />Log in with Facebook
-              </button>
+              {facebookAuthEnabled && (
+                <button className="soft-button-secondary button-with-icon" onClick={() => signIn('facebook', { callbackUrl: '/dashboard?intent=login' })}>
+                  <ButtonIcon symbol="f" />Log in with Facebook
+                </button>
+              )}
             </div>
           </div>
         </section>
