@@ -1,5 +1,5 @@
 export const metadata = {
-  title: 'Data Deletion Instructions | Shopnow',
+  title: 'Data Deletion Instructions | Storeatgo',
 };
 
 export default function DataDeletionPage() {
@@ -15,36 +15,36 @@ export default function DataDeletionPage() {
           </p>
 
           <p>
-            Shopnow respects user privacy and provides a way for users to request deletion of their
+            Storeatgo respects user privacy and provides a way for users to request deletion of their
             account data.
           </p>
 
           <p>
-            If you have used Facebook Login to access Shopnow and want your data deleted, please
+            If you have used Facebook Login to access Storeatgo and want your data deleted, please
             follow the steps below.
           </p>
 
-          <h2>1. Remove Shopnow from your Facebook account</h2>
-          <p>You can remove Shopnow from your Facebook account by following these steps:</p>
+          <h2>1. Remove Storeatgo from your Facebook account</h2>
+          <p>You can remove Storeatgo from your Facebook account by following these steps:</p>
           <ol>
             <li>Log in to your Facebook account</li>
             <li>Go to <strong>Settings &amp; Privacy</strong></li>
             <li>Open <strong>Settings</strong></li>
             <li>Click <strong>Apps and Websites</strong></li>
-            <li>Find <strong>Shopnow</strong></li>
+            <li>Find <strong>Storeatgo</strong></li>
             <li>Click <strong>Remove</strong></li>
           </ol>
 
-          <p>This disconnects your Facebook account from Shopnow.</p>
+          <p>This disconnects your Facebook account from Storeatgo.</p>
 
-          <h2>2. Request deletion of your Shopnow account and data</h2>
+          <h2>2. Request deletion of your Storeatgo account and data</h2>
           <p>
-            After removing Shopnow from Facebook, you may request deletion of your Shopnow account,
+            After removing Storeatgo from Facebook, you may request deletion of your Storeatgo account,
             store data, and associated personal information by sending an email to:
           </p>
 
           <p>
-            <strong>Email:</strong> shopnowofficial.contact@gmail.com
+            <strong>Email:</strong> storeatgoofficial.contact@gmail.com
           </p>
 
           <p>Please use the subject line:</p>
@@ -65,14 +65,14 @@ export default function DataDeletionPage() {
           <p>In your email, include:</p>
           <ul>
             <li>your full name</li>
-            <li>the email address used in your Shopnow account</li>
-            <li>your Shopnow username or store link, if available</li>
+            <li>the email address used in your Storeatgo account</li>
+            <li>your Storeatgo username or store link, if available</li>
             <li>a short statement requesting deletion of your account and data</li>
           </ul>
 
           <h2>3. What data may be deleted</h2>
           <p>
-            Upon receiving and verifying your request, Shopnow may delete data associated with your
+            Upon receiving and verifying your request, Storeatgo may delete data associated with your
             account, including:
           </p>
           <ul>
@@ -91,7 +91,7 @@ export default function DataDeletionPage() {
           </p>
 
           <h2>4. What data may be retained</h2>
-          <p>Shopnow may retain limited information where necessary for:</p>
+          <p>Storeatgo may retain limited information where necessary for:</p>
           <ul>
             <li>legal compliance</li>
             <li>fraud prevention</li>
@@ -120,11 +120,11 @@ export default function DataDeletionPage() {
           </p>
 
           <p>
-            <strong>Shopnow</strong>
+            <strong>Storeatgo</strong>
             <br />
-            <strong>Email:</strong> shopnowofficial.contact@gmail.com
+            <strong>Email:</strong> storeatgoofficial.contact@gmail.com
             <br />
-            <strong>Business Name / Operator:</strong> Shopnow
+            <strong>Business Name / Operator:</strong> Storeatgo
             <br />
             <strong>Address:</strong> Mirpur, Dhaka, Bangladesh
           </p>

@@ -14,7 +14,7 @@ export default function DatabaseSetupScreen({ errorMessage }) {
           }}
         >
           <div style={{ marginBottom: 20 }}><BrandMark size="footer" /></div>
-          <h1 style={{ fontSize: 32, marginBottom: 8 }}>Shopnow needs a MongoDB connection</h1>
+          <h1 style={{ fontSize: 32, marginBottom: 8 }}>Storeatgo needs a MongoDB connection</h1>
           <p style={{ color: '#8B7A6B', marginBottom: 20 }}>
             The UI build is fine, but the app could not reach MongoDB Atlas from your machine.
           </p>

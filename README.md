@@ -1,6 +1,6 @@
-# Shopnow Next.js + MongoDB
+# Storeatgo Next.js + MongoDB
 
-Shopnow is a social-first storefront app built with Next.js, MongoDB Atlas, Auth.js, and Cloudinary uploads. Sellers can sign up with Google/Facebook, choose a username, build a blank storefront, upload products/images, manage COD orders, and share a clean public shop link.
+Storeatgo is a social-first storefront app built with Next.js, MongoDB Atlas, Auth.js, and Cloudinary uploads. Sellers can sign up with Google/Facebook, choose a username, build a blank storefront, upload products/images, manage COD orders, and share a clean public shop link.
 
 ## Main routes
 
@@ -64,7 +64,7 @@ CLOUDINARY_API_SECRET=replace_with_cloudinary_api_secret
 For production on Render, set `NEXT_PUBLIC_APP_URL` to your Render URL, for example:
 
 ```env
-NEXT_PUBLIC_APP_URL=https://shopnow.onrender.com
+NEXT_PUBLIC_APP_URL=https://storeatgo.onrender.com
 ```
 
 ## Cloudinary setup
@@ -80,8 +80,8 @@ In Cloudinary, copy these from your dashboard:
 Uploads are organized by store username under folders like:
 
 ```text
-shopnow/<username>/products
-shopnow/<username>/branding
+storeatgo/<username>/products
+storeatgo/<username>/branding
 ```
 
 ## Render deployment
@@ -139,7 +139,7 @@ This build includes middleware so public storefronts can be opened at:
 Example:
 
 ```text
-https://shopnow.onrender.com/myshop
+https://storeatgo.onrender.com/myshop
 ```
 
 The internal `/store/username` route still exists for compatibility.

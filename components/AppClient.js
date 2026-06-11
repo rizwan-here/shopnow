@@ -135,7 +135,6 @@ export default function AppClient({ initialData, initialMode = 'dashboard', stor
   const [facebookState, setFacebookState] = useState({ connected: false, pages: [], selectedPageId: '', selectedPageName: '', connectedAt: null, loading: false });
   const [productSaveMode, setProductSaveMode] = useState('save');
   const [facebookCaption, setFacebookCaption] = useState('');
-  const facebookAuthEnabled = false;
   const [categoryName, setCategoryName] = useState('');
   const [checkoutForm, setCheckoutForm] = useState(INITIAL_CHECKOUT);
   const [orderSearchQuery, setOrderSearchQuery] = useState('');
@@ -250,22 +249,11 @@ export default function AppClient({ initialData, initialMode = 'dashboard', stor
     const formData = new FormData();
     formData.append('file', file);
     formData.append('folder', folder);
-
-    const response = await fetch('/api/upload', {
-      method: 'POST',
-      body: formData,
-      cache: 'no-store'
-    });
-    const data = await response.json().catch(() => ({}));
-
+    const response = await fetch('/api/upload', { method: 'POST', body: formData });
+    const data = await response.json();
     if (!response.ok) {
       throw new Error(data?.error || 'Upload failed');
     }
-
-    if (!data?.url) {
-      throw new Error('Upload finished but no image URL was returned.');
-    }
-
     return data.url;
   }
 
@@ -447,11 +435,6 @@ export default function AppClient({ initialData, initialMode = 'dashboard', stor
   }
 
   async function submitProduct({ shouldPost = false, captionOverride = '' } = {}) {
-    if (uploadingField) {
-      setToast('Please wait for the image upload to finish before saving.');
-      return;
-    }
-
     const isEditing = Boolean(editingProduct?._id);
     const response = await fetch(isEditing ? `/api/products/${editingProduct._id}` : '/api/products', {
       method: isEditing ? 'PATCH' : 'POST',
@@ -493,11 +476,6 @@ export default function AppClient({ initialData, initialMode = 'dashboard', stor
   }
 
   function openFacebookPostPreview() {
-    if (uploadingField) {
-      setToast('Please wait for the image upload to finish before posting.');
-      return;
-    }
-
     const caption = buildFacebookCaptionPreview({
       product: productForm,
       profile: store.profile,
@@ -510,11 +488,6 @@ export default function AppClient({ initialData, initialMode = 'dashboard', stor
   }
 
   async function confirmSaveAndPost() {
-    if (uploadingField) {
-      setToast('Please wait for the image upload to finish before posting.');
-      return;
-    }
-
     await submitProduct({ shouldPost: true, captionOverride: facebookCaption });
   }
 
@@ -628,39 +601,18 @@ export default function AppClient({ initialData, initialMode = 'dashboard', stor
     await signOut({ callbackUrl: '/' });
   }
 
-  async function saveProfile(profileUpdates) {
-    const nextProfile = { ...(store.profile || {}), ...profileUpdates };
-    const response = await fetch('/api/profile', {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(nextProfile)
-    });
-    const data = await response.json().catch(() => ({}));
-
-    if (!response.ok) {
-      throw new Error(data?.error || data?.message || 'Could not save profile');
-    }
-
-    setStore((current) => ({
-      ...current,
-      profile: data || nextProfile
-    }));
-
-    return data || nextProfile;
-  }
-
   async function handleProfileSave(event) {
     event.preventDefault();
-    try {
-      const updatedProfile = await saveProfile(store.profile || {});
-      await refreshStore();
-      setToast('Profile updated');
+    await fetch('/api/profile', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(store.profile)
+    });
+    const updated = await refreshStore();
+    setToast('Profile updated');
 
-      if (currentView === 'storefront' && updatedProfile.slug !== activeStoreSlug) {
-        window.history.replaceState({}, '', `/${updatedProfile.slug}`);
-      }
-    } catch (error) {
-      setToast(error.message || 'Could not save profile');
+    if (currentView === 'storefront' && updated.profile.slug !== activeStoreSlug) {
+      window.history.replaceState({}, '', `/${updated.profile.slug}`);
     }
   }
 
@@ -765,12 +717,11 @@ export default function AppClient({ initialData, initialMode = 'dashboard', stor
     try {
       setUploadingField(field);
       const url = await uploadImage(file, folder);
-      const savedProfile = await saveProfile({ [field]: url });
       setStore((current) => ({
         ...current,
-        profile: savedProfile || { ...(current.profile || {}), [field]: url }
+        profile: { ...(current.profile || {}), [field]: url }
       }));
-      setToast('Image uploaded and saved');
+      setToast('Image uploaded');
     } catch (error) {
       setToast(error.message || 'Upload failed');
     } finally {
@@ -981,7 +932,7 @@ export default function AppClient({ initialData, initialMode = 'dashboard', stor
           <div className="container store-nav-inner store-nav-actions" style={{ minHeight: 70 }}>
             <BrandMark size="store" />
             <div className="inline-row">
-              {isSellerPreview && (
+              {loggedIn && (
                 <button className="soft-button-ghost button-with-icon" onClick={() => setCurrentView('dashboard')}>
                   <ButtonIcon symbol="◫" />Dashboard
                 </button>
@@ -1067,7 +1018,7 @@ export default function AppClient({ initialData, initialMode = 'dashboard', stor
           <div className="responsive-stack header-actions">
             <div className="store-link-compact">
               <span className="mini-link-label">Shop link</span>
-              <span className="mini-link-text">{`shopnow.xyz/${store.profile.slug}`}</span>
+              <span className="mini-link-text">{`storeatgo.xyz/${store.profile.slug}`}</span>
             </div>
             <button className="soft-button-ghost button-with-icon" onClick={() => navigator.clipboard.writeText(`${window.location.origin}/${store.profile.slug}`)}>
               <ButtonIcon symbol="⧉" />Copy link
@@ -1217,7 +1168,7 @@ export default function AppClient({ initialData, initialMode = 'dashboard', stor
                 </label>
                 <label className="field">
                   <span>Store profile picture</span>
-                  <input type="file" accept="image/*" disabled={Boolean(uploadingField)} onChange={(event) => handleProfileImageSelected('profilePicture', 'branding', event)} />
+                  <input type="file" accept="image/*" onChange={(event) => handleProfileImageSelected('profilePicture', 'branding', event)} />
                   {uploadingField === 'profilePicture' && <small className="muted">Uploading...</small>}
                   {store.profile?.profilePicture && <img src={store.profile.profilePicture} alt="Profile" style={{ width: 84, height: 84, objectFit: 'cover', borderRadius: '50%', marginTop: '0.5rem' }} />}
                 </label>
@@ -1484,13 +1435,13 @@ export default function AppClient({ initialData, initialMode = 'dashboard', stor
               </label>
               <label className="field">
                 <span>Store logo</span>
-                <input type="file" accept="image/*" disabled={Boolean(uploadingField)} onChange={(event) => handleProfileImageSelected('storeLogo', 'branding', event)} />
+                <input type="file" accept="image/*" onChange={(event) => handleProfileImageSelected('storeLogo', 'branding', event)} />
                 {uploadingField === 'storeLogo' && <small className="muted">Uploading...</small>}
                 {store.profile?.storeLogo && <img src={store.profile.storeLogo} alt="Logo" style={{ width: 96, height: 96, objectFit: 'cover', borderRadius: '1rem', marginTop: '0.5rem' }} />}
               </label>
               <label className="field">
                 <span>Store banner</span>
-                <input type="file" accept="image/*" disabled={Boolean(uploadingField)} onChange={(event) => handleProfileImageSelected('storeBanner', 'branding', event)} />
+                <input type="file" accept="image/*" onChange={(event) => handleProfileImageSelected('storeBanner', 'branding', event)} />
                 {uploadingField === 'storeBanner' && <small className="muted">Uploading...</small>}
                 {store.profile?.storeBanner && <img src={store.profile.storeBanner} alt="Banner" style={{ width: '100%', maxWidth: 320, height: 120, objectFit: 'cover', borderRadius: '1rem', marginTop: '0.5rem' }} />}
               </label>
@@ -1635,7 +1586,7 @@ export default function AppClient({ initialData, initialMode = 'dashboard', stor
                 <div className="showcase-hero">
                   <img src="https://images.unsplash.com/photo-1529139574466-a303027c1d8b?auto=format&fit=crop&w=1200&q=80" alt="Storefront preview" />
                   <div className="showcase-overlay">
-                    <strong>shopnow.xyz/yourname</strong>
+                    <strong>storeatgo.xyz/yourname</strong>
                     <p>Your products, your brand, your link — built to turn profile traffic into real orders.</p>
                   </div>
                 </div>
@@ -1684,32 +1635,28 @@ export default function AppClient({ initialData, initialMode = 'dashboard', stor
           <div className="soft-card auth-choice-card" id="signup-options">
             <div className="landing-pill">Sign up</div>
             <h2>Create a new <span className="headline-emphasis">store</span></h2>
-            <p className="muted">Use a Google account that is not already linked to an existing Shopnow store. After sign up, you will choose your unique username.</p>
+            <p className="muted">Use a Google or Facebook account that is not already linked to an existing Storeatgo store. After sign up, you will choose your unique username.</p>
             <div className="auth-buttons">
               <button className="soft-button button-with-icon" onClick={() => signIn('google', { callbackUrl: '/dashboard?intent=signup' })}>
                 <ButtonIcon symbol="G" />Sign up with Google
               </button>
-              {facebookAuthEnabled && (
-                <button className="soft-button-secondary button-with-icon" onClick={() => signIn('facebook', { callbackUrl: '/dashboard?intent=signup' })}>
-                  <ButtonIcon symbol="f" />Sign up with Facebook
-                </button>
-              )}
+              <button className="soft-button-secondary button-with-icon" onClick={() => signIn('facebook', { callbackUrl: '/dashboard?intent=signup' })}>
+                <ButtonIcon symbol="f" />Sign up with Facebook
+              </button>
             </div>
           </div>
 
           <div className="soft-card auth-choice-card" id="login-options">
             <div className="landing-pill landing-pill-outline">Log in</div>
             <h2>Access your <span className="headline-emphasis">existing dashboard</span></h2>
-            <p className="muted">Use the same Google account you used when you created your Shopnow store.</p>
+            <p className="muted">Use the same Google or Facebook account you used when you created your Storeatgo store.</p>
             <div className="auth-buttons">
               <button className="soft-button button-with-icon" onClick={() => signIn('google', { callbackUrl: '/dashboard?intent=login' })}>
                 <ButtonIcon symbol="G" />Log in with Google
               </button>
-              {facebookAuthEnabled && (
-                <button className="soft-button-secondary button-with-icon" onClick={() => signIn('facebook', { callbackUrl: '/dashboard?intent=login' })}>
-                  <ButtonIcon symbol="f" />Log in with Facebook
-                </button>
-              )}
+              <button className="soft-button-secondary button-with-icon" onClick={() => signIn('facebook', { callbackUrl: '/dashboard?intent=login' })}>
+                <ButtonIcon symbol="f" />Log in with Facebook
+              </button>
             </div>
           </div>
         </section>
@@ -1720,8 +1667,8 @@ export default function AppClient({ initialData, initialMode = 'dashboard', stor
     if (sessionStatus === 'loading') {
     return (
       <div className="loading-screen">
-        <div className="loading-wordmark" aria-label="Loading Shopnow">
-          <span>S</span><span>h</span><span>o</span><span>p</span><span>n</span><span>o</span><span>w</span>
+        <div className="loading-wordmark" aria-label="Loading Storeatgo">
+          <span>S</span><span>t</span><span>o</span><span>r</span><span>e</span><span>a</span><span>t</span><span>g</span><span>o</span>
         </div>
       </div>
     );
@@ -1736,7 +1683,7 @@ export default function AppClient({ initialData, initialMode = 'dashboard', stor
       <div className="auth-shell">
         <div className="soft-card auth-card">
           <div className="auth-brand-wrap"><BrandMark size="auth" /></div>
-          <h1 style={{ marginBottom: '0.5rem' }}>Log in to your Shopnow dashboard</h1>
+          <h1 style={{ marginBottom: '0.5rem' }}>Log in to your Storeatgo dashboard</h1>
           <p className="muted">Choose the same social account you used when creating your store.</p>
           <div className="auth-buttons auth-buttons-stack">
             <button className="soft-button button-with-icon" onClick={() => signIn('google', { callbackUrl: '/dashboard?intent=login' })}>
@@ -1776,7 +1723,7 @@ export default function AppClient({ initialData, initialMode = 'dashboard', stor
         <div className="soft-card auth-card">
           <div className="auth-brand-wrap"><BrandMark size="auth" /></div>
           <h1 style={{ marginBottom: '0.5rem' }}>No store found for this account</h1>
-          <p className="muted">This Google or Facebook account has not created a Shopnow store yet. Please sign up first to reserve your username and create your blank store.</p>
+          <p className="muted">This Google or Facebook account has not created a Storeatgo store yet. Please sign up first to reserve your username and create your blank store.</p>
           <div className="checkout-actions" style={{ justifyContent: 'center', marginTop: '1rem' }}>
             <a className="soft-button" href="/#signup-options">Go to sign up</a>
             <button className="soft-button-ghost" type="button" onClick={() => signOut({ callbackUrl: '/' })}>Use another account</button>
@@ -1791,8 +1738,8 @@ export default function AppClient({ initialData, initialMode = 'dashboard', stor
       <div className="auth-shell">
         <div className="soft-card auth-card">
           <div className="auth-brand-wrap"><BrandMark size="auth" /></div>
-          <h1 style={{ marginBottom: '0.5rem' }}>Choose your Shopnow username</h1>
-          <p className="muted">Your store starts completely blank. Pick a unique username for your public link like <strong>shopnow.xyz/username</strong>.</p>
+          <h1 style={{ marginBottom: '0.5rem' }}>Choose your Storeatgo username</h1>
+          <p className="muted">Your store starts completely blank. Pick a unique username for your public link like <strong>storeatgo.xyz/username</strong>.</p>
           <form onSubmit={handleRegisterStore} style={{ marginTop: '1rem' }}>
             <label className="field">
               <span>Username</span>
@@ -2134,7 +2081,7 @@ export default function AppClient({ initialData, initialMode = 'dashboard', stor
                         </label>
                         <label className="field">
                           <span>Variation photo</span>
-                          <input type="file" accept="image/*" disabled={Boolean(uploadingField)} onChange={(event) => handleVarietyImageSelected(index, event)} />
+                          <input type="file" accept="image/*" onChange={(event) => handleVarietyImageSelected(index, event)} />
                           {uploadingField === `varietyImage-${index}` && <small className="muted">Uploading...</small>}
                           {item.imageUrl && <img src={item.imageUrl} alt={item.name || 'Variation'} className="variety-preview-image" />}
                         </label>
@@ -2190,7 +2137,7 @@ export default function AppClient({ initialData, initialMode = 'dashboard', stor
 
               <label className="field">
                 <span>Product image</span>
-                <input type="file" accept="image/*" disabled={Boolean(uploadingField)} onChange={handleProductImageSelected} />
+                <input type="file" accept="image/*" onChange={handleProductImageSelected} />
                 {uploadingField === 'productImage' && <small className="muted">Uploading...</small>}
                 {productForm.imageUrl && <img src={productForm.imageUrl} alt="Preview" style={{ width: 120, height: 120, objectFit: 'cover', borderRadius: '1rem', marginTop: '0.5rem' }} />}
               </label>
@@ -2206,11 +2153,11 @@ export default function AppClient({ initialData, initialMode = 'dashboard', stor
                   Cancel
                 </button>
                 {facebookState.connected ? (
-                  <button className="soft-button-secondary button-with-icon" type="button" disabled={Boolean(uploadingField)} onClick={openFacebookPostPreview}>
+                  <button className="soft-button-secondary button-with-icon" type="button" onClick={openFacebookPostPreview}>
                     <ButtonIcon symbol="f" />{editingProduct ? 'Save and post' : 'Add and post'}
                   </button>
                 ) : null}
-                <button className="soft-button button-with-icon" type="submit" disabled={Boolean(uploadingField)} onClick={() => setProductSaveMode('save')}>
+                <button className="soft-button button-with-icon" type="submit" onClick={() => setProductSaveMode('save')}>
                   <ButtonIcon symbol={editingProduct ? '✓' : '＋'} />{editingProduct ? 'Save product' : 'Add product'}
                 </button>
               </div>
@@ -2242,7 +2189,7 @@ export default function AppClient({ initialData, initialMode = 'dashboard', stor
               <button className="soft-button-ghost" type="button" onClick={() => setModal('product')}>
                 Back to product
               </button>
-              <button className="soft-button-secondary button-with-icon" type="button" disabled={Boolean(uploadingField)} onClick={confirmSaveAndPost}>
+              <button className="soft-button-secondary button-with-icon" type="button" onClick={confirmSaveAndPost}>
                 <ButtonIcon symbol="f" />Publish to Facebook
               </button>
             </div>

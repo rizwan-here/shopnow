@@ -16,7 +16,7 @@ const display = Playfair_Display({
 });
 
 export const metadata = {
-  title: 'Shopnow',
+  title: 'Storeatgo',
   description: 'Fashion-forward social storefronts for independent sellers',
   metadataBase: new URL('https://shopnow-341d.onrender.com')
 };
