@@ -207,7 +207,9 @@ export default function AppClient({ initialData, initialMode = 'dashboard', stor
     const endpoint = slug ? `/api/bootstrap?slug=${encodeURIComponent(slug)}` : '/api/bootstrap';
     const response = await fetch(endpoint, { cache: 'no-store' });
     const data = await response.json();
-    setStore(data || EMPTY_STORE);
+    if (data?.profile) {
+      setStore(data);
+    }
     return data;
   }
 
@@ -518,8 +520,11 @@ export default function AppClient({ initialData, initialMode = 'dashboard', stor
     setEditingUsername(false);
     setNewUsername('');
     setUsernameEditCheck({ status: 'idle', message: '' });
-    const updated = await refreshStore();
-    window.history.replaceState({}, '', `/${updated.profile.slug}`);
+    // Refresh by session (no slug arg) so slug change never causes a 404 bootstrap
+    const updated = await refreshStore(null);
+    if (updated?.profile?.slug) {
+      window.history.replaceState({}, '', `/dashboard`);
+    }
     setToast('Username updated');
   }
 

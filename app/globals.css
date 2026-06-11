@@ -1539,6 +1539,7 @@ img {
   width: 100%;
   height: auto;
   object-fit: contain;
+  mix-blend-mode: multiply;
 }
 
 .brand-mark-nav {
@@ -1788,6 +1789,7 @@ img {
   width: 100%;
   height: auto;
   object-fit: contain;
+  mix-blend-mode: multiply;
 }
 
 .brand-mark-nav {
