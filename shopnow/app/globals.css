@@ -231,32 +231,6 @@ img {
   object-fit: cover;
 }
 
-.seller-avatar-circle {
-  width: 64px;
-  height: 64px;
-  border-radius: 50%;
-  border: 3px solid white;
-  object-fit: cover;
-  flex-shrink: 0;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.25);
-}
-
-.seller-avatar-placeholder {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: var(--accent, #4f6df5);
-  color: white;
-  font-size: 1.6rem;
-  font-weight: 700;
-  width: 64px;
-  height: 64px;
-  border-radius: 50%;
-  border: 3px solid white;
-  flex-shrink: 0;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.25);
-}
-
 .store-nav {
   position: sticky;
   top: 0;
@@ -698,26 +672,6 @@ img {
   .checkout-actions {
     flex-wrap: wrap;
     justify-content: flex-end;
-  }
-
-  .product-modal-actions {
-    flex-direction: column;
-    align-items: stretch;
-  }
-
-  .product-modal-actions > button,
-  .product-modal-actions .modal-save-group {
-    width: 100%;
-  }
-
-  .product-modal-actions .modal-save-group {
-    display: flex;
-    gap: 0.5rem;
-    justify-content: flex-end;
-  }
-
-  .product-modal-actions .modal-save-group button {
-    flex: 1;
   }
 }
 
@@ -1928,38 +1882,8 @@ img {
   height: 82px;
   object-fit: cover;
   border-radius: 0.85rem;
+  margin-top: 0.5rem;
   border: 1px solid var(--border);
-}
-
-.image-preview-wrap {
-  position: relative;
-  display: inline-block;
-}
-
-.image-delete-btn {
-  position: absolute;
-  top: -8px;
-  right: -8px;
-  width: 22px;
-  height: 22px;
-  border-radius: 50%;
-  background: #e53e3e;
-  color: white;
-  border: 2px solid white;
-  font-size: 0.95rem;
-  line-height: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  padding: 0;
-  box-shadow: 0 1px 4px rgba(0,0,0,0.2);
-  transition: background 0.15s;
-  z-index: 2;
-}
-
-.image-delete-btn:hover {
-  background: #c53030;
 }
 
 .product-detail-modal {

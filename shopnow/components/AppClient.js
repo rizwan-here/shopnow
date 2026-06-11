@@ -100,6 +100,20 @@ function splitCommaValues(value = '') {
     .filter(Boolean);
 }
 
+function buildFacebookCaptionPreview({ product, profile, baseUrl, fallbackDeliveryEstimate = '' }) {
+  const storefrontUrl = `${baseUrl}/${profile?.slug || ''}`;
+  const lines = [
+    `✨ ${product.name || ''}`,
+    product.shortDescription || product.description || '',
+    product.price ? `Price: ${currency(Number(product.price || 0), profile?.currencyCode || 'BDT')}` : '',
+    product.hasSizes && product.selectedSizes?.length ? `Sizes: ${product.selectedSizes.join(', ')}` : '',
+    splitCommaValues(product.colorOptions).length ? `Colors: ${splitCommaValues(product.colorOptions).join(', ')}` : '',
+    product.deliveryEstimate || fallbackDeliveryEstimate ? `Delivery: ${product.deliveryEstimate || fallbackDeliveryEstimate}` : '',
+    profile?.slug ? `Order here: ${storefrontUrl}` : ''
+  ];
+  return lines.filter(Boolean).join('\n');
+}
+
 export default function AppClient({ initialData, initialMode = 'dashboard', storeSlugOverride = null, authIntent = null }) {
   const [store, setStore] = useState(initialData || EMPTY_STORE);
   const { data: session, status: sessionStatus } = useSession();
@@ -118,7 +132,9 @@ export default function AppClient({ initialData, initialMode = 'dashboard', stor
   const [productForm, setProductForm] = useState(createProductForm());
   const [registerForm, setRegisterForm] = useState({ username: '', storeName: '' });
   const [uploadingField, setUploadingField] = useState('');
+  const [facebookState, setFacebookState] = useState({ connected: false, pages: [], selectedPageId: '', selectedPageName: '', connectedAt: null, loading: false });
   const [productSaveMode, setProductSaveMode] = useState('save');
+  const [facebookCaption, setFacebookCaption] = useState('');
   const [categoryName, setCategoryName] = useState('');
   const [checkoutForm, setCheckoutForm] = useState(INITIAL_CHECKOUT);
   const [orderSearchQuery, setOrderSearchQuery] = useState('');
@@ -138,9 +154,6 @@ export default function AppClient({ initialData, initialMode = 'dashboard', stor
   const [modal, setModal] = useState(null);
   const [deleteConfirmSlug, setDeleteConfirmSlug] = useState('');
   const [deleteConfirmText, setDeleteConfirmText] = useState('');
-  const [editingUsername, setEditingUsername] = useState(false);
-  const [newUsername, setNewUsername] = useState('');
-  const [usernameEditCheck, setUsernameEditCheck] = useState({ status: 'idle', message: '' });
 
   const loggedIn = sessionStatus === 'authenticated';
   const user = session?.user || null;
@@ -150,6 +163,52 @@ export default function AppClient({ initialData, initialMode = 'dashboard', stor
     const timer = setTimeout(() => setToast(''), 3200);
     return () => clearTimeout(timer);
   }, [toast]);
+
+  useEffect(() => {
+    if (!loggedIn) return;
+    let ignore = false;
+    async function loadFacebookState() {
+      try {
+        setFacebookState((current) => ({ ...current, loading: true }));
+        const response = await fetch('/api/facebook/page', { cache: 'no-store' });
+        const data = await response.json();
+        if (!ignore) {
+          setFacebookState({
+            connected: Boolean(data.connected),
+            pages: data.pages || [],
+            selectedPageId: data.selectedPageId || '',
+            selectedPageName: data.selectedPageName || '',
+            connectedAt: data.connectedAt || null,
+            loading: false
+          });
+        }
+      } catch {
+        if (!ignore) {
+          setFacebookState((current) => ({ ...current, loading: false }));
+        }
+      }
+    }
+    loadFacebookState();
+    return () => { ignore = true; };
+  }, [loggedIn]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const url = new URL(window.location.href);
+    const status = url.searchParams.get('facebook');
+    if (!status) return;
+    const messages = {
+      connected: 'Facebook Page connected',
+      no_pages: 'No managed Facebook Pages were found for this account',
+      oauth_error: 'Facebook connection was cancelled or failed',
+      connect_failed: 'Could not connect Facebook Page',
+      login_required: 'Please log in before connecting a Facebook Page',
+      not_configured: 'Facebook Page posting is not configured yet'
+    };
+    if (messages[status]) setToast(messages[status]);
+    url.searchParams.delete('facebook');
+    window.history.replaceState({}, '', url.pathname + (url.search ? url.search : ''));
+  }, []);
 
   useEffect(() => {
     if (!(sessionStatus === 'authenticated' && initialMode === 'dashboard' && !store?.profile)) return;
@@ -172,32 +231,6 @@ export default function AppClient({ initialData, initialMode = 'dashboard', stor
     }, 350);
     return () => { controller.abort(); clearTimeout(timer); };
   }, [registerForm.username, sessionStatus, initialMode, store?.profile]);
-
-  useEffect(() => {
-    if (!editingUsername) return;
-    const username = newUsername.trim();
-    if (!username) {
-      setUsernameEditCheck({ status: 'idle', message: '' });
-      return;
-    }
-    if (username === store?.profile?.slug) {
-      setUsernameEditCheck({ status: 'idle', message: 'This is your current username.' });
-      return;
-    }
-    const controller = new AbortController();
-    const timer = setTimeout(async () => {
-      try {
-        setUsernameEditCheck({ status: 'checking', message: 'Checking availability...' });
-        const response = await fetch(`/api/username-check?username=${encodeURIComponent(username)}`, { signal: controller.signal });
-        const data = await response.json();
-        setNewUsername(data.normalized || username);
-        setUsernameEditCheck({ status: data.available ? 'ok' : 'error', message: data.message || '' });
-      } catch (error) {
-        if (error.name !== 'AbortError') setUsernameEditCheck({ status: 'error', message: 'Could not check username.' });
-      }
-    }, 350);
-    return () => { controller.abort(); clearTimeout(timer); };
-  }, [newUsername, editingUsername, store?.profile?.slug]);
 
   const activeStoreSlug = storeSlugOverride || store?.profile?.slug || null;
   const storeCurrency = store?.profile?.currencyCode || 'BDT';
@@ -334,6 +367,44 @@ export default function AppClient({ initialData, initialMode = 'dashboard', stor
     );
   }
 
+  async function selectFacebookPage(pageId) {
+    const response = await fetch('/api/facebook/page', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ pageId })
+    });
+    const data = await response.json();
+    if (!response.ok) {
+      setToast(data?.error || 'Could not change Facebook Page');
+      return;
+    }
+    setFacebookState((current) => ({ ...current, ...data, loading: false }));
+    setToast('Facebook Page selected');
+  }
+
+  async function disconnectFacebookPage() {
+    const response = await fetch('/api/facebook/disconnect', { method: 'POST' });
+    if (!response.ok) {
+      setToast('Could not disconnect Facebook Page');
+      return;
+    }
+    setFacebookState({ connected: false, pages: [], selectedPageId: '', selectedPageName: '', connectedAt: null, loading: false });
+    setToast('Facebook Page disconnected');
+  }
+
+  async function publishProductToFacebook(productId, captionOverride = '') {
+    const response = await fetch('/api/facebook/post-product', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ productId, caption: captionOverride })
+    });
+    const data = await response.json();
+    if (!response.ok) {
+      throw new Error(data?.error || 'Could not publish to Facebook');
+    }
+    return data;
+  }
+
   function buildProductPayload() {
     return {
       name: productForm.name,
@@ -363,7 +434,7 @@ export default function AppClient({ initialData, initialMode = 'dashboard', stor
     };
   }
 
-  async function submitProduct() {
+  async function submitProduct({ shouldPost = false, captionOverride = '' } = {}) {
     const isEditing = Boolean(editingProduct?._id);
     const response = await fetch(isEditing ? `/api/products/${editingProduct._id}` : '/api/products', {
       method: isEditing ? 'PATCH' : 'POST',
@@ -377,18 +448,47 @@ export default function AppClient({ initialData, initialMode = 'dashboard', stor
       return;
     }
 
+    const savedProductId = data?._id;
+
     setProductForm(createProductForm());
     setEditingProduct(null);
     setModal(null);
     setProductSaveMode('save');
+    setFacebookCaption('');
     await refreshStore();
+
+    if (shouldPost && savedProductId) {
+      try {
+        const publishResult = await publishProductToFacebook(savedProductId, captionOverride);
+        setToast(`Product ${isEditing ? 'updated' : 'added'} and posted to ${publishResult.pageName || 'Facebook Page'}`);
+      } catch (error) {
+        setToast(`${isEditing ? 'Product updated' : 'Product added'}, but Facebook posting failed: ${error.message}`);
+      }
+      return;
+    }
 
     setToast(isEditing ? 'Product updated' : 'Product added');
   }
 
   async function handleSaveProduct(event) {
     event.preventDefault();
-    await submitProduct();
+    await submitProduct({ shouldPost: false });
+  }
+
+  function openFacebookPostPreview() {
+    const caption = buildFacebookCaptionPreview({
+      product: productForm,
+      profile: store.profile,
+      baseUrl: typeof window !== 'undefined' ? window.location.origin : '',
+      fallbackDeliveryEstimate: store.profile?.defaultDeliveryEstimate || ''
+    });
+    setFacebookCaption(caption);
+    setProductSaveMode('save_and_post');
+    setModal('facebook-preview');
+  }
+
+  async function confirmSaveAndPost() {
+    await submitProduct({ shouldPost: true, captionOverride: facebookCaption });
   }
 
   function openProductEditor(product = null) {
@@ -399,6 +499,7 @@ export default function AppClient({ initialData, initialMode = 'dashboard', stor
       setEditingProduct(null);
       setProductForm(createProductForm());
     }
+    setFacebookCaption('');
     setModal('product');
   }
 
@@ -498,29 +599,6 @@ export default function AppClient({ initialData, initialMode = 'dashboard', stor
     setDeleteConfirmText('');
     setToast('Your store has been deleted');
     await signOut({ callbackUrl: '/' });
-  }
-
-  async function handleUsernameUpdate() {
-    if (usernameEditCheck.status !== 'ok') {
-      setToast(usernameEditCheck.message || 'Please choose a valid username.');
-      return;
-    }
-    const response = await fetch('/api/profile', {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ...store.profile, slug: newUsername })
-    });
-    const data = await response.json();
-    if (!response.ok) {
-      setToast(data?.error || 'Could not update username');
-      return;
-    }
-    setEditingUsername(false);
-    setNewUsername('');
-    setUsernameEditCheck({ status: 'idle', message: '' });
-    const updated = await refreshStore();
-    window.history.replaceState({}, '', `/${updated.profile.slug}`);
-    setToast('Username updated');
   }
 
   async function handleProfileSave(event) {
@@ -840,15 +918,7 @@ export default function AppClient({ initialData, initialMode = 'dashboard', stor
       <div className="page-shell">
         <div className="store-banner" style={{ backgroundImage: `url(${store.profile.storeBanner})` }}>
           <div className="store-banner-content">
-            {store.profile.profilePicture ? (
-              <img src={store.profile.profilePicture} alt={store.profile.storeName} className="seller-avatar-circle" />
-            ) : store.profile.storeLogo ? (
-              <img src={store.profile.storeLogo} alt={store.profile.storeName} />
-            ) : (
-              <div className="seller-avatar-circle seller-avatar-placeholder">
-                {(store.profile.storeName || 'S').charAt(0).toUpperCase()}
-              </div>
-            )}
+            {store.profile.storeLogo && <img src={store.profile.storeLogo} alt={store.profile.storeName} />}
             <div>
               <h1 style={{ color: 'white', margin: 0, fontSize: 'clamp(2rem, 5vw, 4rem)' }}>
                 {store.profile.storeName}
@@ -901,13 +971,23 @@ export default function AppClient({ initialData, initialMode = 'dashboard', stor
           </div>
 
           {!storefrontSelectedCategory ? (
-            store.products.length > 0 ? (
-              <div className="store-grid storefront-grid">
-                {store.products.map((product) => productCard(product, true))}
-              </div>
-            ) : (
-              <div className="empty-state soft-card section-block">No products available yet.</div>
-            )
+            store.categories.map((category) => {
+              const categoryProducts = getProductsForCategory(category._id);
+              if (categoryProducts.length === 0) return null;
+              return (
+                <section className="store-section" key={category._id}>
+                  <div className="store-category-head">
+                    <h2 style={{ margin: 0 }}>{category.name}</h2>
+                    <button className="soft-button-ghost button-with-icon" onClick={() => setStorefrontSelectedCategory(category._id)}>
+                      <ButtonIcon symbol="→" />See all
+                    </button>
+                  </div>
+                  <div className="store-grid storefront-grid">
+                    {categoryProducts.slice(0, 4).map((product) => productCard(product, true))}
+                  </div>
+                </section>
+              );
+            })
           ) : (
             <div className="store-grid storefront-grid">
               {displayedProducts.map((product) => productCard(product, true))}
@@ -1090,17 +1170,7 @@ export default function AppClient({ initialData, initialMode = 'dashboard', stor
                   <span>Store profile picture</span>
                   <input type="file" accept="image/*" onChange={(event) => handleProfileImageSelected('profilePicture', 'branding', event)} />
                   {uploadingField === 'profilePicture' && <small className="muted">Uploading...</small>}
-                  {store.profile?.profilePicture && (
-                    <div className="image-preview-wrap" style={{ position: 'relative', display: 'inline-block', marginTop: '0.5rem' }}>
-                      <img src={store.profile.profilePicture} alt="Profile" style={{ width: 84, height: 84, objectFit: 'cover', borderRadius: '50%' }} />
-                      <button
-                        type="button"
-                        className="image-delete-btn"
-                        onClick={() => setStore((current) => ({ ...current, profile: { ...(current.profile || {}), profilePicture: '' } }))}
-                        title="Remove image"
-                      >×</button>
-                    </div>
-                  )}
+                  {store.profile?.profilePicture && <img src={store.profile.profilePicture} alt="Profile" style={{ width: 84, height: 84, objectFit: 'cover', borderRadius: '50%', marginTop: '0.5rem' }} />}
                 </label>
                 <div style={{ marginTop: '1rem' }}>
                   <button className="soft-button button-with-icon" type="submit">
@@ -1359,92 +1429,55 @@ export default function AppClient({ initialData, initialMode = 'dashboard', stor
                 <span>Store-wide return / exchange policy</span>
                 <textarea value={store.profile.exchangePolicy || ''} onChange={(event) => setStore((current) => ({ ...current, profile: { ...(current.profile || {}), exchangePolicy: event.target.value } }))} />
               </label>
-              <div className="field">
-                <span className="field-label-text" style={{ display: 'block', marginBottom: '0.4rem', fontWeight: 500 }}>Username / store link</span>
-                {!editingUsername ? (
-                  <div className="inline-row" style={{ gap: '0.6rem', alignItems: 'center' }}>
-                    <span className="mini-link-text" style={{ fontFamily: 'monospace', background: 'var(--surface-2,#f4f4f4)', padding: '0.45rem 0.75rem', borderRadius: '0.5rem', fontSize: '0.9rem' }}>
-                      storeatgo.xyz/<strong>{store.profile?.slug}</strong>
-                    </span>
-                    <button
-                      type="button"
-                      className="soft-button-ghost"
-                      onClick={() => {
-                        setNewUsername(store.profile?.slug || '');
-                        setUsernameEditCheck({ status: 'idle', message: 'Enter a new username.' });
-                        setEditingUsername(true);
-                      }}
-                    >
-                      Edit
-                    </button>
-                  </div>
-                ) : (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                    <div className="inline-row" style={{ gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
-                      <span className="muted" style={{ fontSize: '0.9rem', whiteSpace: 'nowrap' }}>storeatgo.xyz/</span>
-                      <input
-                        value={newUsername}
-                        onChange={(event) => setNewUsername(event.target.value)}
-                        placeholder="new-username"
-                        style={{ flex: 1, minWidth: 140 }}
-                        autoFocus
-                      />
-                    </div>
-                    <small className={`muted ${usernameEditCheck.status === 'ok' ? 'status-ok' : usernameEditCheck.status === 'error' ? 'status-error' : ''}`}>
-                      {usernameEditCheck.status === 'checking' ? '⏳ Checking...' : usernameEditCheck.status === 'ok' ? `✓ ${usernameEditCheck.message}` : usernameEditCheck.status === 'error' ? `✗ ${usernameEditCheck.message}` : usernameEditCheck.message}
-                    </small>
-                    <div className="inline-row" style={{ gap: '0.5rem' }}>
-                      <button
-                        type="button"
-                        className="soft-button"
-                        disabled={usernameEditCheck.status !== 'ok'}
-                        onClick={handleUsernameUpdate}
-                      >
-                        Save username
-                      </button>
-                      <button
-                        type="button"
-                        className="soft-button-ghost"
-                        onClick={() => { setEditingUsername(false); setNewUsername(''); setUsernameEditCheck({ status: 'idle', message: '' }); }}
-                      >
-                        Cancel
-                      </button>
-                    </div>
-                  </div>
-                )}
-              </div>
+              <label className="field">
+                <span>Username / store link</span>
+                <input value={store.profile?.slug || ''} disabled />
+              </label>
               <label className="field">
                 <span>Store logo</span>
                 <input type="file" accept="image/*" onChange={(event) => handleProfileImageSelected('storeLogo', 'branding', event)} />
                 {uploadingField === 'storeLogo' && <small className="muted">Uploading...</small>}
-                {store.profile?.storeLogo && (
-                  <div className="image-preview-wrap" style={{ position: 'relative', display: 'inline-block', marginTop: '0.5rem' }}>
-                    <img src={store.profile.storeLogo} alt="Logo" style={{ width: 96, height: 96, objectFit: 'cover', borderRadius: '1rem' }} />
-                    <button
-                      type="button"
-                      className="image-delete-btn"
-                      onClick={() => setStore((current) => ({ ...current, profile: { ...(current.profile || {}), storeLogo: '' } }))}
-                      title="Remove image"
-                    >×</button>
-                  </div>
-                )}
+                {store.profile?.storeLogo && <img src={store.profile.storeLogo} alt="Logo" style={{ width: 96, height: 96, objectFit: 'cover', borderRadius: '1rem', marginTop: '0.5rem' }} />}
               </label>
               <label className="field">
                 <span>Store banner</span>
                 <input type="file" accept="image/*" onChange={(event) => handleProfileImageSelected('storeBanner', 'branding', event)} />
                 {uploadingField === 'storeBanner' && <small className="muted">Uploading...</small>}
-                {store.profile?.storeBanner && (
-                  <div className="image-preview-wrap" style={{ position: 'relative', display: 'inline-block', marginTop: '0.5rem' }}>
-                    <img src={store.profile.storeBanner} alt="Banner" style={{ width: '100%', maxWidth: 320, height: 120, objectFit: 'cover', borderRadius: '1rem' }} />
-                    <button
-                      type="button"
-                      className="image-delete-btn"
-                      onClick={() => setStore((current) => ({ ...current, profile: { ...(current.profile || {}), storeBanner: '' } }))}
-                      title="Remove image"
-                    >×</button>
-                  </div>
-                )}
+                {store.profile?.storeBanner && <img src={store.profile.storeBanner} alt="Banner" style={{ width: '100%', maxWidth: 320, height: 120, objectFit: 'cover', borderRadius: '1rem', marginTop: '0.5rem' }} />}
               </label>
+            </div>
+            <div className="soft-card section-block" style={{ marginTop: '1rem', padding: '1rem' }}>
+              <div className="section-head" style={{ marginBottom: '0.8rem' }}>
+                <div>
+                  <h3 style={{ margin: 0 }}>Facebook Page posting</h3>
+                  <p className="muted" style={{ margin: '0.35rem 0 0' }}>Connect a Facebook Page to publish a product image, caption, and store link in one click.</p>
+                </div>
+              </div>
+              {!facebookState.connected ? (
+                <div className="inline-row responsive-stack" style={{ justifyContent: 'space-between' }}>
+                  <div className="muted">No Facebook Page connected yet.</div>
+                  <a className="soft-button button-with-icon" href="/api/facebook/connect"><ButtonIcon symbol="f" />Connect Facebook Page</a>
+                </div>
+              ) : (
+                <div className="form-grid dashboard-form-stack" style={{ flexDirection: 'column' }}>
+                  <label className="field">
+                    <span>Connected page</span>
+                    <select value={facebookState.selectedPageId || ''} onChange={(event) => selectFacebookPage(event.target.value)}>
+                      {(facebookState.pages || []).map((page) => (
+                        <option key={page.pageId} value={page.pageId}>{page.pageName}</option>
+                      ))}
+                    </select>
+                  </label>
+                  <div className="tag-row">
+                    <span className="tag">Ready to post as {facebookState.selectedPageName || 'Facebook Page'}</span>
+                    {facebookState.connectedAt ? <span className="tag">Connected {new Date(facebookState.connectedAt).toLocaleDateString()}</span> : null}
+                  </div>
+                  <div className="tag-row" style={{ marginTop: '0.5rem' }}>
+                    <a className="soft-button-ghost" href="/api/facebook/connect">Reconnect</a>
+                    <button className="soft-button-ghost" type="button" onClick={disconnectFacebookPage}>Disconnect</button>
+                  </div>
+                </div>
+              )}
             </div>
             <div className="note-box" style={{ marginTop: '1rem' }}>
               Payment methods are locked to <strong>Cash on delivery</strong>. Your preferred currency controls how prices appear across the dashboard and storefront. Use the delivery and policy fields below to answer buyer questions automatically and stay consistent across products.
@@ -1602,10 +1635,13 @@ export default function AppClient({ initialData, initialMode = 'dashboard', stor
           <div className="soft-card auth-choice-card" id="signup-options">
             <div className="landing-pill">Sign up</div>
             <h2>Create a new <span className="headline-emphasis">store</span></h2>
-            <p className="muted">Use a Google account that is not already linked to an existing Storeatgo store. After sign up, you will choose your unique username.</p>
+            <p className="muted">Use a Google or Facebook account that is not already linked to an existing Storeatgo store. After sign up, you will choose your unique username.</p>
             <div className="auth-buttons">
               <button className="soft-button button-with-icon" onClick={() => signIn('google', { callbackUrl: '/dashboard?intent=signup' })}>
                 <ButtonIcon symbol="G" />Sign up with Google
+              </button>
+              <button className="soft-button-secondary button-with-icon" onClick={() => signIn('facebook', { callbackUrl: '/dashboard?intent=signup' })}>
+                <ButtonIcon symbol="f" />Sign up with Facebook
               </button>
             </div>
           </div>
@@ -1613,10 +1649,13 @@ export default function AppClient({ initialData, initialMode = 'dashboard', stor
           <div className="soft-card auth-choice-card" id="login-options">
             <div className="landing-pill landing-pill-outline">Log in</div>
             <h2>Access your <span className="headline-emphasis">existing dashboard</span></h2>
-            <p className="muted">Use the same Google account you used when you created your Storeatgo store.</p>
+            <p className="muted">Use the same Google or Facebook account you used when you created your Storeatgo store.</p>
             <div className="auth-buttons">
               <button className="soft-button button-with-icon" onClick={() => signIn('google', { callbackUrl: '/dashboard?intent=login' })}>
                 <ButtonIcon symbol="G" />Log in with Google
+              </button>
+              <button className="soft-button-secondary button-with-icon" onClick={() => signIn('facebook', { callbackUrl: '/dashboard?intent=login' })}>
+                <ButtonIcon symbol="f" />Log in with Facebook
               </button>
             </div>
           </div>
@@ -1650,6 +1689,9 @@ export default function AppClient({ initialData, initialMode = 'dashboard', stor
             <button className="soft-button button-with-icon" onClick={() => signIn('google', { callbackUrl: '/dashboard?intent=login' })}>
               <ButtonIcon symbol="G" />Log in with Google
             </button>
+            <button className="soft-button-secondary button-with-icon" onClick={() => signIn('facebook', { callbackUrl: '/dashboard?intent=login' })}>
+              <ButtonIcon symbol="f" />Log in with Facebook
+            </button>
           </div>
           <div className="checkout-actions" style={{ justifyContent: 'center', marginTop: '1rem' }}>
             <a className="soft-button-ghost" href="/">Back to landing page</a>
@@ -1665,7 +1707,7 @@ export default function AppClient({ initialData, initialMode = 'dashboard', stor
         <div className="soft-card auth-card">
           <div className="auth-brand-wrap"><BrandMark size="auth" /></div>
           <h1 style={{ marginBottom: '0.5rem' }}>This account already has a store</h1>
-          <p className="muted">Looks like this Google account is already connected to <strong>{store.profile.storeName}</strong>. Please use log in instead of sign up.</p>
+          <p className="muted">Looks like this Google or Facebook account is already connected to <strong>{store.profile.storeName}</strong>. Please use log in instead of sign up.</p>
           <div className="checkout-actions" style={{ justifyContent: 'center', marginTop: '1rem' }}>
             <a className="soft-button" href="/dashboard">Go to dashboard</a>
             <button className="soft-button-ghost" type="button" onClick={() => signOut({ callbackUrl: '/' })}>Use another account</button>
@@ -1681,7 +1723,7 @@ export default function AppClient({ initialData, initialMode = 'dashboard', stor
         <div className="soft-card auth-card">
           <div className="auth-brand-wrap"><BrandMark size="auth" /></div>
           <h1 style={{ marginBottom: '0.5rem' }}>No store found for this account</h1>
-          <p className="muted">This Google account has not created a Storeatgo store yet. Please sign up first to reserve your username and create your blank store.</p>
+          <p className="muted">This Google or Facebook account has not created a Storeatgo store yet. Please sign up first to reserve your username and create your blank store.</p>
           <div className="checkout-actions" style={{ justifyContent: 'center', marginTop: '1rem' }}>
             <a className="soft-button" href="/#signup-options">Go to sign up</a>
             <button className="soft-button-ghost" type="button" onClick={() => signOut({ callbackUrl: '/' })}>Use another account</button>
@@ -2041,17 +2083,7 @@ export default function AppClient({ initialData, initialMode = 'dashboard', stor
                           <span>Variation photo</span>
                           <input type="file" accept="image/*" onChange={(event) => handleVarietyImageSelected(index, event)} />
                           {uploadingField === `varietyImage-${index}` && <small className="muted">Uploading...</small>}
-                          {item.imageUrl && (
-                            <div className="image-preview-wrap" style={{ position: 'relative', display: 'inline-block', marginTop: '0.4rem' }}>
-                              <img src={item.imageUrl} alt={item.name || 'Variation'} className="variety-preview-image" />
-                              <button
-                                type="button"
-                                className="image-delete-btn"
-                                onClick={() => updateVarietyOption(index, { imageUrl: '' })}
-                                title="Remove image"
-                              >×</button>
-                            </div>
-                          )}
+                          {item.imageUrl && <img src={item.imageUrl} alt={item.name || 'Variation'} className="variety-preview-image" />}
                         </label>
                         <button className="soft-button-ghost" type="button" onClick={() => removeVarietyOption(index)}>Remove</button>
                       </div>
@@ -2107,35 +2139,61 @@ export default function AppClient({ initialData, initialMode = 'dashboard', stor
                 <span>Product image</span>
                 <input type="file" accept="image/*" onChange={handleProductImageSelected} />
                 {uploadingField === 'productImage' && <small className="muted">Uploading...</small>}
-                {productForm.imageUrl && (
-                  <div className="image-preview-wrap" style={{ position: 'relative', display: 'inline-block', marginTop: '0.5rem' }}>
-                    <img src={productForm.imageUrl} alt="Preview" style={{ width: 120, height: 120, objectFit: 'cover', borderRadius: '1rem' }} />
-                    <button
-                      type="button"
-                      className="image-delete-btn"
-                      onClick={() => setProductForm((current) => ({ ...current, imageUrl: '' }))}
-                      title="Remove image"
-                    >×</button>
-                  </div>
-                )}
+                {productForm.imageUrl && <img src={productForm.imageUrl} alt="Preview" style={{ width: 120, height: 120, objectFit: 'cover', borderRadius: '1rem', marginTop: '0.5rem' }} />}
               </label>
             </div>
-            <div className="checkout-actions product-modal-actions" style={{ justifyContent: 'space-between', marginTop: '1rem' }}>
+            <div className="checkout-actions" style={{ justifyContent: 'space-between', marginTop: '1rem' }}>
               {editingProduct && (
                 <button className="soft-button-danger" type="button" onClick={() => handleDeleteProduct(editingProduct._id)}>
                   Delete product
                 </button>
               )}
-              <div className="modal-save-group" style={{ marginLeft: 'auto' }}>
-                <button className="soft-button-ghost" type="button" onClick={() => { setModal(null); setEditingProduct(null); setProductForm(createProductForm()); setProductSaveMode('save'); }}>
+              <div className="checkout-actions responsive-stack" style={{ justifyContent: 'flex-end' }}>
+                <button className="soft-button-ghost" type="button" onClick={() => { setModal(null); setEditingProduct(null); setProductForm(createProductForm()); setProductSaveMode('save'); setFacebookCaption(''); }}>
                   Cancel
                 </button>
+                {facebookState.connected ? (
+                  <button className="soft-button-secondary button-with-icon" type="button" onClick={openFacebookPostPreview}>
+                    <ButtonIcon symbol="f" />{editingProduct ? 'Save and post' : 'Add and post'}
+                  </button>
+                ) : null}
                 <button className="soft-button button-with-icon" type="submit" onClick={() => setProductSaveMode('save')}>
                   <ButtonIcon symbol={editingProduct ? '✓' : '＋'} />{editingProduct ? 'Save product' : 'Add product'}
                 </button>
               </div>
             </div>
           </form>
+        </Modal>
+      )}
+
+      {modal === 'facebook-preview' && (
+        <Modal onClose={() => setModal('product')} title={`Preview Facebook post${facebookState.selectedPageName ? ` for ${facebookState.selectedPageName}` : ''}`}>
+          <div className="facebook-preview-shell">
+            <div className="soft-card facebook-preview-card">
+              <div className="facebook-preview-head">
+                <span className="tag">Facebook Page preview</span>
+                {facebookState.selectedPageName ? <strong>{facebookState.selectedPageName}</strong> : null}
+              </div>
+              {productForm.imageUrl ? <img className="facebook-preview-image" src={productForm.imageUrl} alt={productForm.name || 'Product preview'} /> : null}
+              <div className="facebook-preview-body">
+                <label className="field">
+                  <span>Edit caption before publish</span>
+                  <textarea value={facebookCaption} onChange={(event) => setFacebookCaption(event.target.value)} rows={9} />
+                </label>
+                <div className="facebook-caption-preview">
+                  <pre>{facebookCaption}</pre>
+                </div>
+              </div>
+            </div>
+            <div className="checkout-actions" style={{ justifyContent: 'flex-end', marginTop: '1rem' }}>
+              <button className="soft-button-ghost" type="button" onClick={() => setModal('product')}>
+                Back to product
+              </button>
+              <button className="soft-button-secondary button-with-icon" type="button" onClick={confirmSaveAndPost}>
+                <ButtonIcon symbol="f" />Publish to Facebook
+              </button>
+            </div>
+          </div>
         </Modal>
       )}
 

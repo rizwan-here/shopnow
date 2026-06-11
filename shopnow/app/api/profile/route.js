@@ -2,7 +2,6 @@ import { NextResponse } from 'next/server';
 import { connectToDatabase } from '@/lib/mongodb';
 import StoreProfile from '@/models/StoreProfile';
 import { getCurrentStoreProfile } from '@/lib/auth-store';
-import { slugify } from '@/lib/utils';
 
 export async function PATCH(request) {
   const { session, profile } = await getCurrentStoreProfile();
@@ -16,17 +15,6 @@ export async function PATCH(request) {
 
   if (!doc) {
     return NextResponse.json({ message: 'Profile not found' }, { status: 404 });
-  }
-
-  // Handle slug/username change
-  if (body.slug && body.slug !== doc.slug) {
-    const newSlug = slugify(body.slug);
-    if (!newSlug) return NextResponse.json({ error: 'Invalid username.' }, { status: 400 });
-    const reserved = ['store', 'api', 'dashboard', 'login', 'signup'];
-    if (reserved.includes(newSlug)) return NextResponse.json({ error: 'Username is reserved.' }, { status: 400 });
-    const exists = await StoreProfile.findOne({ slug: newSlug, _id: { $ne: doc._id } }).lean();
-    if (exists) return NextResponse.json({ error: 'Username already taken.' }, { status: 409 });
-    doc.slug = newSlug;
   }
 
   doc.storeName = body.storeName ?? doc.storeName;
