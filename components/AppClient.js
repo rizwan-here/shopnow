@@ -151,6 +151,8 @@ export default function AppClient({ initialData, initialMode = 'dashboard', stor
   const [trackError, setTrackError] = useState('');
   const [deliveryZone, setDeliveryZone] = useState('inside');
   const [lastSeenOrderCount, setLastSeenOrderCount] = useState(0);
+  const [showProductTutorial, setShowProductTutorial] = useState(false);
+  const [tutorialStep, setTutorialStep] = useState(0);
 
   const loggedIn = sessionStatus === 'authenticated';
   const user = session?.user || null;
@@ -308,6 +310,23 @@ export default function AppClient({ initialData, initialMode = 'dashboard', stor
   const hasProducts = (store.products || []).length > 0;
   const hasCategories = (store.categories || []).length > 0;
   const isNewStore = !hasProducts && !hasCategories;
+
+  // Show first-product tutorial automatically for brand-new stores
+  useEffect(() => {
+    if (initialMode !== 'dashboard') return;
+    if (!isNewStore) return;
+    if (dashboardTab !== 'products') return;
+    try {
+      if (localStorage.getItem('storeatgo-product-tutorial-seen')) return;
+    } catch {}
+    setShowProductTutorial(true);
+    setTutorialStep(0);
+  }, [initialMode, isNewStore, dashboardTab]);
+
+  function dismissProductTutorial() {
+    setShowProductTutorial(false);
+    try { localStorage.setItem('storeatgo-product-tutorial-seen', '1'); } catch {}
+  }
 
 
   function normalizeOrderStatus(status) {
@@ -1154,7 +1173,10 @@ export default function AppClient({ initialData, initialMode = 'dashboard', stor
                   <h2>Start building a storefront that feels ready to sell from day one.</h2>
                   <p className="muted">Your dashboard is completely blank right now. Add your first category, upload a product, and then preview your store link before you start sharing it with buyers.</p>
                   <div className="landing-cta-row">
-                    <button className="soft-button button-with-icon" onClick={() => openProductEditor()}>
+                    <button className="soft-button button-with-icon" onClick={() => { setShowProductTutorial(true); setTutorialStep(0); }}>
+                      <ButtonIcon symbol="✦" />Show me how (guided tour)
+                    </button>
+                    <button className="soft-button-secondary button-with-icon" onClick={() => openProductEditor()}>
                       <ButtonIcon symbol="＋" />Add your first product
                     </button>
                     <button className="soft-button-secondary button-with-icon" onClick={() => setModal('category')}>
@@ -2703,6 +2725,22 @@ export default function AppClient({ initialData, initialMode = 'dashboard', stor
           </div>
         </div>
       )}
+
+      {showProductTutorial && (
+        <ProductTutorial
+          step={tutorialStep}
+          setStep={setTutorialStep}
+          onClose={dismissProductTutorial}
+          onAddProduct={() => {
+            dismissProductTutorial();
+            openProductEditor();
+          }}
+          onCreateCategory={() => {
+            dismissProductTutorial();
+            setModal('category');
+          }}
+        />
+      )}
     </>
   );
 }
@@ -2732,6 +2770,113 @@ function SellerNoteField({ orderId, initialNote, onSave }) {
           {saving ? 'Saving…' : 'Save note'}
         </button>
         {saved && <span className="status-ok" style={{ fontSize: '0.85rem' }}>✓ Saved</span>}
+      </div>
+    </div>
+  );
+}
+
+// ProductTutorial — interactive step-by-step guide for adding the first product
+const TUTORIAL_STEPS = [
+  {
+    icon: '👋',
+    title: 'Welcome to your store!',
+    body: "Let's get your first product online in just a few quick steps. It only takes a couple of minutes, and you can skip this anytime."
+  },
+  {
+    icon: '◻',
+    title: 'Step 1 — Create a category (optional)',
+    body: "Categories help buyers browse your store, like \"New Arrivals\" or \"Best Sellers\". You can create one now, or skip and add it later from Products & Categories."
+  },
+  {
+    icon: '🖼',
+    title: 'Step 2 — Add a great product photo',
+    body: 'A clear, well-lit photo is the single biggest factor in getting orders. Square photos (1:1) look best on your storefront.'
+  },
+  {
+    icon: '✏️',
+    title: 'Step 3 — Name, price & description',
+    body: "Give your product a short, clear name and price. The short description shows on product cards, and the full description appears on the product page — mention size, material, or what makes it special."
+  },
+  {
+    icon: '📦',
+    title: 'Step 4 — Stock & options',
+    body: 'Set your stock status and quantity so buyers know what is available. If your product comes in different sizes, colors, or varieties, you can add those too — or skip for a simple single-version product.'
+  },
+  {
+    icon: '🚀',
+    title: "You're ready!",
+    body: "That's everything you need. Tap \"Add my first product\" to open the product form — fields you skip can always be filled in later from your dashboard."
+  }
+];
+
+function ProductTutorial({ step, setStep, onClose, onAddProduct, onCreateCategory }) {
+  const total = TUTORIAL_STEPS.length;
+  const current = TUTORIAL_STEPS[step] || TUTORIAL_STEPS[0];
+  const isFirst = step === 0;
+  const isLast = step === total - 1;
+  const isCategoryStep = step === 1;
+
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="centered-modal" onClick={(event) => event.stopPropagation()} style={{ maxWidth: 480 }}>
+        <div className="modal-card">
+          <div className="drawer-header">
+            <h2 style={{ margin: 0 }}>Adding your first product</h2>
+            <button className="soft-button-ghost" onClick={onClose}>Skip tutorial</button>
+          </div>
+
+          <div style={{ marginTop: '1.25rem', textAlign: 'center' }}>
+            <div style={{ fontSize: '2.5rem', lineHeight: 1 }}>{current.icon}</div>
+            <h3 style={{ margin: '0.75rem 0 0.5rem' }}>{current.title}</h3>
+            <p className="muted" style={{ margin: 0 }}>{current.body}</p>
+          </div>
+
+          {isCategoryStep && (
+            <div style={{ marginTop: '1rem', textAlign: 'center' }}>
+              <button className="soft-button-secondary button-with-icon" onClick={onCreateCategory}>
+                <ButtonIcon symbol="＋" />Create a category now
+              </button>
+            </div>
+          )}
+
+          <div className="tutorial-progress-row" style={{ display: 'flex', justifyContent: 'center', gap: '0.4rem', marginTop: '1.25rem' }}>
+            {TUTORIAL_STEPS.map((_, i) => (
+              <span
+                key={i}
+                className={`tutorial-dot ${i === step ? 'active' : ''}`}
+                style={{
+                  width: i === step ? '1.5rem' : '0.5rem',
+                  height: '0.5rem',
+                  borderRadius: '999px',
+                  background: i === step ? 'var(--accent, #6c5ce7)' : 'rgba(0,0,0,0.15)',
+                  transition: 'all 0.2s ease'
+                }}
+              />
+            ))}
+          </div>
+
+          <div style={{ marginTop: '1.25rem', display: 'flex', justifyContent: 'space-between', gap: '0.75rem', flexWrap: 'wrap' }}>
+            <button className="soft-button-ghost" onClick={onClose}>
+              Skip
+            </button>
+            <div style={{ display: 'flex', gap: '0.75rem' }}>
+              {!isFirst && (
+                <button className="soft-button-ghost" onClick={() => setStep((s) => Math.max(0, s - 1))}>
+                  Back
+                </button>
+              )}
+              {!isLast ? (
+                <button className="soft-button button-with-icon" onClick={() => setStep((s) => Math.min(total - 1, s + 1))}>
+                  Next<ButtonIcon symbol="→" />
+                </button>
+              ) : (
+                <button className="soft-button button-with-icon" onClick={onAddProduct}>
+                  <ButtonIcon symbol="＋" />Add my first product
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );
