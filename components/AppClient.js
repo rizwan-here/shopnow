@@ -5,6 +5,7 @@ import { signIn, signOut, useSession } from 'next-auth/react';
 import { ORDER_ACTIONS, ORDER_PROGRESS_STEPS, ORDER_STATUS_LABELS } from '@/lib/constants';
 import BrandMark from '@/components/BrandMark';
 import { currency } from '@/lib/utils';
+import ImageCropModal from '@/components/ImageCropModal';
 
 const EMPTY_STORE = { profile: null, categories: [], products: [], links: [], orders: [] };
 const CURRENCY_OPTIONS = ['BDT', 'USD', 'EUR', 'GBP', 'INR', 'AED', 'SAR', 'MYR'];
@@ -119,6 +120,7 @@ export default function AppClient({ initialData, initialMode = 'dashboard', stor
   const [productForm, setProductForm] = useState(createProductForm());
   const [registerForm, setRegisterForm] = useState({ username: '', storeName: '' });
   const [uploadingField, setUploadingField] = useState('');
+  const [cropModal, setCropModal] = useState(null); // { file, field, folder, onConfirm }
   const [productSaveMode, setProductSaveMode] = useState('save');
   const [categoryName, setCategoryName] = useState('');
   const [checkoutForm, setCheckoutForm] = useState(INITIAL_CHECKOUT);
@@ -620,21 +622,30 @@ export default function AppClient({ initialData, initialMode = 'dashboard', stor
     setToast('Your store is ready');
   }
 
-  async function handleProductImageSelected(event) {
+  function handleProductImageSelected(event) {
     const file = event.target.files?.[0];
     if (!file) return;
-    try {
-      setUploadingField('productImage');
-      const url = await uploadImage(file, 'products');
-      setProductForm((current) => ({ ...current, imageUrl: url }));
-      setToast('Product image uploaded');
-    } catch (error) {
-      setToast(error.message || 'Upload failed');
-    } finally {
-      setUploadingField('');
-      event.target.value = '';
-    }
+    event.target.value = '';
+    setCropModal({
+      file,
+      field: 'productImage',
+      folder: 'products',
+      onConfirm: async (croppedFile) => {
+        setCropModal(null);
+        try {
+          setUploadingField('productImage');
+          const url = await uploadImage(croppedFile, 'products');
+          setProductForm((current) => ({ ...current, imageUrl: url }));
+          setToast('Product image uploaded');
+        } catch (error) {
+          setToast(error.message || 'Upload failed');
+        } finally {
+          setUploadingField('');
+        }
+      }
+    });
   }
+
 
   function toggleProductSize(size) {
     setProductForm((current) => ({
@@ -670,21 +681,30 @@ export default function AppClient({ initialData, initialMode = 'dashboard', stor
     }));
   }
 
-  async function handleVarietyImageSelected(index, event) {
+  function handleVarietyImageSelected(index, event) {
     const file = event.target.files?.[0];
     if (!file) return;
-    try {
-      setUploadingField(`varietyImage-${index}`);
-      const url = await uploadImage(file, 'product-varieties');
-      updateVarietyOption(index, { imageUrl: url });
-      setToast('Variety photo uploaded');
-    } catch (error) {
-      setToast(error.message || 'Upload failed');
-    } finally {
-      setUploadingField('');
-      event.target.value = '';
-    }
+    event.target.value = '';
+    setCropModal({
+      file,
+      field: 'varietyImage',
+      folder: 'product-varieties',
+      onConfirm: async (croppedFile) => {
+        setCropModal(null);
+        try {
+          setUploadingField(`varietyImage-${index}`);
+          const url = await uploadImage(croppedFile, 'product-varieties');
+          updateVarietyOption(index, { imageUrl: url });
+          setToast('Variety photo uploaded');
+        } catch (error) {
+          setToast(error.message || 'Upload failed');
+        } finally {
+          setUploadingField('');
+        }
+      }
+    });
   }
+
 
   function openProductDetails(product) {
     setSelectedProduct(product);
@@ -695,24 +715,33 @@ export default function AppClient({ initialData, initialMode = 'dashboard', stor
     });
   }
 
-  async function handleProfileImageSelected(field, folder, event) {
+  function handleProfileImageSelected(field, folder, event) {
     const file = event.target.files?.[0];
     if (!file) return;
-    try {
-      setUploadingField(field);
-      const url = await uploadImage(file, folder);
-      setStore((current) => ({
-        ...current,
-        profile: { ...(current.profile || {}), [field]: url }
-      }));
-      setToast('Image uploaded');
-    } catch (error) {
-      setToast(error.message || 'Upload failed');
-    } finally {
-      setUploadingField('');
-      event.target.value = '';
-    }
+    event.target.value = '';
+    setCropModal({
+      file,
+      field,
+      folder,
+      onConfirm: async (croppedFile) => {
+        setCropModal(null);
+        try {
+          setUploadingField(field);
+          const url = await uploadImage(croppedFile, folder);
+          setStore((current) => ({
+            ...current,
+            profile: { ...(current.profile || {}), [field]: url }
+          }));
+          setToast('Image uploaded');
+        } catch (error) {
+          setToast(error.message || 'Upload failed');
+        } finally {
+          setUploadingField('');
+        }
+      }
+    });
   }
+
 
   async function handleAdvanceOrder(orderId, action, label) {
     if (action === 'archive_note') return;
@@ -2725,6 +2754,15 @@ export default function AppClient({ initialData, initialMode = 'dashboard', stor
             dismissProductTutorial();
             setModal('category');
           }}
+        />
+      )}
+
+      {cropModal && (
+        <ImageCropModal
+          file={cropModal.file}
+          field={cropModal.field}
+          onConfirm={cropModal.onConfirm}
+          onCancel={() => setCropModal(null)}
         />
       )}
     </>
