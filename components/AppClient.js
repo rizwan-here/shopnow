@@ -144,7 +144,8 @@ export default function AppClient({ initialData, initialMode = 'dashboard', stor
   const [placedOrder, setPlacedOrder] = useState(null);
   const [showOrderConfirmation, setShowOrderConfirmation] = useState(false);
   const [showTrackOrder, setShowTrackOrder] = useState(false);
-  const [trackForm, setTrackForm] = useState({ orderNumber: '', contact: '' });
+  const [trackContact, setTrackContact] = useState('');
+  const [trackOrderList, setTrackOrderList] = useState(null);
   const [trackResult, setTrackResult] = useState(null);
   const [trackLoading, setTrackLoading] = useState(false);
   const [trackError, setTrackError] = useState('');
@@ -795,16 +796,45 @@ export default function AppClient({ initialData, initialMode = 'dashboard', stor
     setToast('Seller note saved');
   }
 
-  async function handleTrackOrder() {
-    if (!trackForm.orderNumber.trim() || !trackForm.contact.trim()) {
-      setTrackError('Please enter your order number and phone or email.');
+  function resetTrackModal() {
+    setTrackContact('');
+    setTrackOrderList(null);
+    setTrackResult(null);
+    setTrackError('');
+    setTrackLoading(false);
+  }
+
+  async function handleFindOrders() {
+    if (!trackContact.trim()) {
+      setTrackError('Please enter your phone number or email.');
       return;
     }
     setTrackLoading(true);
     setTrackError('');
+    setTrackOrderList(null);
     setTrackResult(null);
     try {
-      const res = await fetch(`/api/orders/track?orderNumber=${encodeURIComponent(trackForm.orderNumber.trim().toUpperCase())}&contact=${encodeURIComponent(trackForm.contact.trim())}`);
+      const res = await fetch(`/api/orders/lookup?contact=${encodeURIComponent(trackContact.trim())}`);
+      const data = await res.json();
+      if (!res.ok) {
+        setTrackError(data?.error || 'Could not find orders.');
+      } else if (!data.orders || data.orders.length === 0) {
+        setTrackError('No orders found for that phone number or email.');
+      } else {
+        setTrackOrderList(data.orders);
+      }
+    } catch {
+      setTrackError('Network error. Please try again.');
+    } finally {
+      setTrackLoading(false);
+    }
+  }
+
+  async function handleSelectTrackedOrder(orderNumber) {
+    setTrackLoading(true);
+    setTrackError('');
+    try {
+      const res = await fetch(`/api/orders/track?orderNumber=${encodeURIComponent(orderNumber)}&contact=${encodeURIComponent(trackContact.trim())}`);
       const data = await res.json();
       if (!res.ok) {
         setTrackError(data?.error || 'Could not find order.');
@@ -972,7 +1002,7 @@ export default function AppClient({ initialData, initialMode = 'dashboard', stor
               )}
               {!isSellerPreview && (
                 <>
-                  <button className="soft-button-ghost button-with-icon" onClick={() => { setShowTrackOrder(true); setTrackResult(null); setTrackError(''); setTrackForm({ orderNumber: '', contact: '' }); }}>
+                  <button className="soft-button-ghost button-with-icon" onClick={() => { setShowTrackOrder(true); resetTrackModal(); }}>
                     <ButtonIcon symbol="↻" />Track order
                   </button>
                   <button className="soft-button-ghost button-with-icon" onClick={() => setShowCart(true)}>
@@ -1674,7 +1704,10 @@ export default function AppClient({ initialData, initialMode = 'dashboard', stor
             <BrandMark size="nav" showTagline={true} />
             <div className="responsive-stack">
               {loggedIn ? (
-                <a className="soft-button-ghost button-with-icon" href="/dashboard"><ButtonIcon symbol="◌" />Go to dashboard</a>
+                <>
+                  <a className="soft-button-ghost button-with-icon" href="/dashboard"><ButtonIcon symbol="◌" />Go to dashboard</a>
+                  <button type="button" className="soft-button-ghost button-with-icon" onClick={() => signOut({ callbackUrl: '/' })}><ButtonIcon symbol="⏻" />Log out</button>
+                </>
               ) : (
                 <>
                   <a className="soft-button-ghost" href="#login-options">Log in</a>
@@ -2535,16 +2568,14 @@ export default function AppClient({ initialData, initialMode = 'dashboard', stor
                 ))}
               </div>
               <div className="note-box" style={{ marginTop: '1rem', fontSize: '0.85rem' }}>
-                Save your order number <strong>#{placedOrder.orderNumber}</strong> — you can use it to track your order using the <em>Track order</em> button in the store.
+                Save your order number <strong>#{placedOrder.orderNumber}</strong> — you can use the <em>Track order</em> button in the store and enter your phone number or email to see all your orders.
               </div>
               <div style={{ marginTop: '1rem', display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
                 <button className="soft-button" onClick={() => {
                   setShowOrderConfirmation(false);
                   setPlacedOrder(null);
                   setShowTrackOrder(true);
-                  setTrackForm({ orderNumber: placedOrder.orderNumber, contact: '' });
-                  setTrackResult(null);
-                  setTrackError('');
+                  resetTrackModal();
                 }}>
                   Track my order
                 </button>
@@ -2554,48 +2585,70 @@ export default function AppClient({ initialData, initialMode = 'dashboard', stor
               </div>
             </div>
           </div>
-        </div>
-      )}
-
       {/* ── Track Order Modal ── */}
       {showTrackOrder && (
-        <div className="modal-overlay" onClick={() => { setShowTrackOrder(false); setTrackResult(null); setTrackError(''); }}>
+        <div className="modal-overlay" onClick={() => { setShowTrackOrder(false); resetTrackModal(); }}>
           <div className="centered-modal" onClick={(e) => e.stopPropagation()}>
             <div className="modal-card">
               <div className="drawer-header">
                 <h2 style={{ margin: 0 }}>Track your order</h2>
-                <button className="soft-button-ghost" onClick={() => { setShowTrackOrder(false); setTrackResult(null); setTrackError(''); }}>Close</button>
+                <button className="soft-button-ghost" onClick={() => { setShowTrackOrder(false); resetTrackModal(); }}>Close</button>
               </div>
               <div style={{ marginTop: '1rem' }}>
-                {!trackResult ? (
+                {!trackResult && !trackOrderList && (
                   <>
-                    <p className="muted">Enter your order number and the phone number or email you used at checkout.</p>
-                    <label className="field" style={{ marginTop: '0.75rem' }}>
-                      <span>Order number</span>
-                      <input
-                        value={trackForm.orderNumber}
-                        onChange={(e) => setTrackForm(f => ({ ...f, orderNumber: e.target.value }))}
-                        placeholder="e.g. ORD8K3FX2A"
-                        style={{ textTransform: 'uppercase' }}
-                      />
-                    </label>
+                    <p className="muted">Enter the phone number or email you used at checkout to see your orders.</p>
                     <label className="field" style={{ marginTop: '0.75rem' }}>
                       <span>Phone or email</span>
                       <input
-                        value={trackForm.contact}
-                        onChange={(e) => setTrackForm(f => ({ ...f, contact: e.target.value }))}
+                        value={trackContact}
+                        onChange={(e) => setTrackContact(e.target.value)}
                         placeholder="01XXXXXXXXX or you@example.com"
+                        onKeyDown={(e) => { if (e.key === 'Enter') handleFindOrders(); }}
                       />
                     </label>
                     {trackError && <div className="status-error" style={{ marginTop: '0.5rem', fontSize: '0.9rem' }}>✗ {trackError}</div>}
                     <div style={{ marginTop: '1rem', display: 'flex', gap: '0.75rem' }}>
-                      <button className="soft-button" onClick={handleTrackOrder} disabled={trackLoading}>
-                        {trackLoading ? 'Searching…' : 'Find my order'}
+                      <button className="soft-button" onClick={handleFindOrders} disabled={trackLoading}>
+                        {trackLoading ? 'Searching…' : 'Find my orders'}
                       </button>
-                      <button className="soft-button-ghost" onClick={() => { setShowTrackOrder(false); setTrackResult(null); setTrackError(''); }}>Cancel</button>
+                      <button className="soft-button-ghost" onClick={() => { setShowTrackOrder(false); resetTrackModal(); }}>Cancel</button>
                     </div>
                   </>
-                ) : (
+                )}
+
+                {trackOrderList && !trackResult && (
+                  <>
+                    <p className="muted">Select an order to see its status.</p>
+                    {trackError && <div className="status-error" style={{ marginTop: '0.5rem', fontSize: '0.9rem' }}>✗ {trackError}</div>}
+                    <div style={{ marginTop: '0.75rem', display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
+                      {trackOrderList.map((order) => (
+                        <button
+                          key={order.orderNumber}
+                          className="soft-card clickable-product-card"
+                          style={{ textAlign: 'left', padding: '0.85rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.75rem', cursor: 'pointer', border: 'none' }}
+                          onClick={() => handleSelectTrackedOrder(order.orderNumber)}
+                          disabled={trackLoading}
+                        >
+                          <div>
+                            <div style={{ fontFamily: 'monospace', fontWeight: 600 }}>#{order.orderNumber}</div>
+                            <div className="muted" style={{ fontSize: '0.82rem' }}>{order.itemCount} item{order.itemCount === 1 ? '' : 's'} • {new Date(order.createdAt).toLocaleDateString()}</div>
+                          </div>
+                          <div style={{ textAlign: 'right' }}>
+                            <span className={`status-pill status-${order.status}`}>{ORDER_STATUS_LABELS[order.status] || order.status}</span>
+                            <div style={{ marginTop: '0.25rem', fontWeight: 600 }}>{formatMoney(order.total)}</div>
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                    <div style={{ marginTop: '1rem', display: 'flex', gap: '0.75rem' }}>
+                      <button className="soft-button-ghost" onClick={() => { setTrackOrderList(null); setTrackError(''); }}>Back</button>
+                      <button className="soft-button-ghost" onClick={() => { setShowTrackOrder(false); resetTrackModal(); }}>Close</button>
+                    </div>
+                  </>
+                )}
+
+                {trackResult && (
                   <>
                     <div className="order-confirm-box note-box">
                       <div className="order-confirm-row"><span className="muted">Order</span><strong style={{ fontFamily: 'monospace' }}>#{trackResult.orderNumber}</strong></div>
@@ -2637,13 +2690,16 @@ export default function AppClient({ initialData, initialMode = 'dashboard', stor
                       </div>
                     )}
                     <div style={{ marginTop: '1rem', display: 'flex', gap: '0.75rem' }}>
-                      <button className="soft-button-ghost" onClick={() => { setTrackResult(null); setTrackError(''); setTrackForm({ orderNumber: '', contact: '' }); }}>Track another</button>
-                      <button className="soft-button-ghost" onClick={() => { setShowTrackOrder(false); setTrackResult(null); setTrackError(''); }}>Close</button>
+                      <button className="soft-button-ghost" onClick={() => { setTrackResult(null); }}>Back to my orders</button>
+                      <button className="soft-button-ghost" onClick={() => { setShowTrackOrder(false); resetTrackModal(); }}>Close</button>
                     </div>
                   </>
                 )}
               </div>
             </div>
+          </div>
+        </div>
+      )}
           </div>
         </div>
       )}
