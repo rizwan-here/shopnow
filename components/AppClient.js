@@ -1870,21 +1870,6 @@ export default function AppClient({ initialData, initialMode = 'dashboard', stor
     );
   }
 
-  if (loggedIn && initialMode === 'dashboard' && authIntent === 'signup' && store?.profile) {
-    return (
-      <div className="auth-shell">
-        <div className="soft-card auth-card">
-          <div className="auth-brand-wrap"><BrandMark size="auth" /></div>
-          <h1 style={{ marginBottom: '0.5rem' }}>This account already has a store</h1>
-          <p className="muted">Looks like this Google account is already connected to <strong>{store.profile.storeName}</strong>. Please use log in instead of sign up.</p>
-          <div className="checkout-actions" style={{ justifyContent: 'center', marginTop: '1rem' }}>
-            <a className="soft-button" href="/dashboard">Go to dashboard</a>
-            <button className="soft-button-ghost" type="button" onClick={() => signOut({ callbackUrl: '/' })}>Use another account</button>
-          </div>
-        </div>
-      </div>
-    );
-  }
 
   if (loggedIn && initialMode === 'dashboard' && !store?.profile && authIntent === 'login') {
     return (
