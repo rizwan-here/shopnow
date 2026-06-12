@@ -2585,6 +2585,9 @@ export default function AppClient({ initialData, initialMode = 'dashboard', stor
               </div>
             </div>
           </div>
+        </div>
+      )}
+
       {/* ── Track Order Modal ── */}
       {showTrackOrder && (
         <div className="modal-overlay" onClick={() => { setShowTrackOrder(false); resetTrackModal(); }}>
@@ -2697,9 +2700,6 @@ export default function AppClient({ initialData, initialMode = 'dashboard', stor
                 )}
               </div>
             </div>
-          </div>
-        </div>
-      )}
           </div>
         </div>
       )}
