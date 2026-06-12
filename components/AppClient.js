@@ -108,6 +108,7 @@ export default function AppClient({ initialData, initialMode = 'dashboard', stor
   const [searchProductQuery, setSearchProductQuery] = useState('');
   const [selectedCategoryFilter, setSelectedCategoryFilter] = useState('all');
   const [storefrontSelectedCategory, setStorefrontSelectedCategory] = useState(null);
+  const [storefrontSearchQuery, setStorefrontSearchQuery] = useState('');
   const [cartItems, setCartItems] = useState([]);
   const [showCart, setShowCart] = useState(false);
   const [showCheckout, setShowCheckout] = useState(false);
@@ -141,9 +142,41 @@ export default function AppClient({ initialData, initialMode = 'dashboard', stor
   const [editingUsername, setEditingUsername] = useState(false);
   const [newUsername, setNewUsername] = useState('');
   const [usernameEditCheck, setUsernameEditCheck] = useState({ status: 'idle', message: '' });
+  const [placedOrder, setPlacedOrder] = useState(null);
+  const [showOrderConfirmation, setShowOrderConfirmation] = useState(false);
+  const [showTrackOrder, setShowTrackOrder] = useState(false);
+  const [trackForm, setTrackForm] = useState({ orderNumber: '', contact: '' });
+  const [trackResult, setTrackResult] = useState(null);
+  const [trackLoading, setTrackLoading] = useState(false);
+  const [trackError, setTrackError] = useState('');
+  const [deliveryZone, setDeliveryZone] = useState('inside');
+  const [lastSeenOrderCount, setLastSeenOrderCount] = useState(0);
 
   const loggedIn = sessionStatus === 'authenticated';
   const user = session?.user || null;
+
+  // Persist cart to localStorage
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem('storeatgo_cart');
+      if (saved) setCartItems(JSON.parse(saved));
+    } catch {}
+  }, []);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('storeatgo_cart', JSON.stringify(cartItems));
+    } catch {}
+  }, [cartItems]);
+
+  // Poll for new orders every 60s on seller dashboard orders tab
+  useEffect(() => {
+    if (!loggedIn || initialMode !== 'dashboard') return;
+    const interval = setInterval(() => {
+      refreshStore(null);
+    }, 60000);
+    return () => clearInterval(interval);
+  }, [loggedIn, initialMode]);
 
   useEffect(() => {
     if (!toast) return;
@@ -262,6 +295,10 @@ export default function AppClient({ initialData, initialMode = 'dashboard', stor
       return matchesQuery && matchesStatus;
     });
   }, [store.orders, orderSearchQuery, orderStatusFilter]);
+
+  const newOrderCount = useMemo(() => {
+    return Math.max(0, (store.orders || []).filter(o => !o.sellerDeletedAt).length - lastSeenOrderCount);
+  }, [store.orders, lastSeenOrderCount]);
 
   const selectedOrder = useMemo(() => {
     if (!selectedOrderId) return null;
@@ -676,16 +713,32 @@ export default function AppClient({ initialData, initialMode = 'dashboard', stor
     setToast(label || 'Order updated');
   }
 
+  function calcDeliveryCharge() {
+    const profile = store.profile || {};
+    const freeThreshold = Number(profile.freeDeliveryThreshold || 0);
+    if (freeThreshold > 0 && cartTotal >= freeThreshold) return 0;
+    return deliveryZone === 'outside'
+      ? Number(profile.deliveryOutsideDhaka || 0)
+      : Number(profile.deliveryInsideDhaka || 0);
+  }
+
   async function handlePlaceOrder() {
     if (!checkoutForm.name || !checkoutForm.email || !checkoutForm.phone || !checkoutForm.address) {
-      setToast('Please complete shipping details');
+      setToast('Please fill in all required fields');
       return;
     }
-
+    const emailOk = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(checkoutForm.email.trim());
+    if (!emailOk) {
+      setToast('Please enter a valid email address');
+      return;
+    }
     if (cartItems.length === 0) {
       setToast('Cart is empty');
       return;
     }
+
+    const deliveryCharge = calcDeliveryCharge();
+    const grandTotal = cartTotal + deliveryCharge;
 
     const response = await fetch('/api/orders', {
       method: 'POST',
@@ -698,24 +751,35 @@ export default function AppClient({ initialData, initialMode = 'dashboard', stor
         address: checkoutForm.address,
         source: checkoutForm.source,
         buyerNote: checkoutForm.buyerNote,
-        total: cartTotal,
+        deliveryZone,
+        productTotal: cartTotal,
+        total: grandTotal,
         items: cartItems.map((item) => ({
           productId: item._id,
           name: item.name,
           price: item.price,
           quantity: item.quantity,
+          imageUrl: item.imageUrl || '',
           selectedOptions: item.selectedOptions || {}
         }))
       })
     });
 
     const order = await response.json();
+    if (!response.ok) {
+      setToast(order?.error || 'Could not place order');
+      return;
+    }
+
+    setPlacedOrder({ ...order, deliveryCharge, productTotal: cartTotal, grandTotal });
     setCartItems([]);
+    localStorage.removeItem('storeatgo_cart');
     setShowCheckout(false);
     setShowCart(false);
     setCheckoutForm(INITIAL_CHECKOUT);
+    setDeliveryZone('inside');
+    setShowOrderConfirmation(true);
     await refreshStore();
-    setToast(`Order placed! #${order.orderNumber} - COD only`);
   }
 
   async function handleSaveSellerNote(orderId, sellerNote) {
@@ -730,6 +794,29 @@ export default function AppClient({ initialData, initialMode = 'dashboard', stor
     }
     await refreshStore();
     setToast('Seller note saved');
+  }
+
+  async function handleTrackOrder() {
+    if (!trackForm.orderNumber.trim() || !trackForm.contact.trim()) {
+      setTrackError('Please enter your order number and phone or email.');
+      return;
+    }
+    setTrackLoading(true);
+    setTrackError('');
+    setTrackResult(null);
+    try {
+      const res = await fetch(`/api/orders/track?orderNumber=${encodeURIComponent(trackForm.orderNumber.trim().toUpperCase())}&contact=${encodeURIComponent(trackForm.contact.trim())}`);
+      const data = await res.json();
+      if (!res.ok) {
+        setTrackError(data?.error || 'Could not find order.');
+      } else {
+        setTrackResult(data);
+      }
+    } catch {
+      setTrackError('Network error. Please try again.');
+    } finally {
+      setTrackLoading(false);
+    }
   }
 
   async function handleHideOrderRecord() {
@@ -758,9 +845,20 @@ export default function AppClient({ initialData, initialMode = 'dashboard', stor
     setToast('Order record removed from app view');
   }
 
-  async function copyTemplate(templateText) {
+  async function copyTemplate(templateText, order = null) {
+    let text = templateText || '';
+    if (order) {
+      const itemSummary = (order.items || []).map(i => `${i.name} x${i.quantity}`).join(', ');
+      text = text
+        .replace(/\{\{customerName\}\}/g, order.customerName || '')
+        .replace(/\{\{orderNumber\}\}/g, order.orderNumber || '')
+        .replace(/\{\{total\}\}/g, formatMoney(order.total))
+        .replace(/\{\{items\}\}/g, itemSummary)
+        .replace(/\{\{address\}\}/g, order.address || '')
+        .replace(/\{\{phone\}\}/g, order.customerPhone || '');
+    }
     try {
-      await navigator.clipboard.writeText(templateText);
+      await navigator.clipboard.writeText(text);
       setToast('Template copied');
     } catch {
       setToast('Could not copy template');
@@ -779,8 +877,9 @@ export default function AppClient({ initialData, initialMode = 'dashboard', stor
         ? { role: 'button', tabIndex: 0, onClick: () => openProductEditor(product), onKeyDown: (event) => { if (event.key === 'Enter') openProductEditor(product); } }
         : {};
 
+    const isStockOut = (product.stockStatus || 'in_stock') === 'stock_out';
     return (
-      <div className={`soft-card product-card ${(compact || isSellerDashboardCard) ? 'clickable-product-card' : ''}`} key={product._id} {...clickableProps}>
+      <div className={`soft-card product-card ${(compact || isSellerDashboardCard) ? 'clickable-product-card' : ''} ${compact && isStockOut ? 'product-card-sold-out' : ''}`} key={product._id} {...clickableProps}>
         {product.imageUrl ? (
           <img src={product.imageUrl} alt={product.name} />
         ) : (
@@ -837,9 +936,13 @@ export default function AppClient({ initialData, initialMode = 'dashboard', stor
 
   function renderStorefront() {
     const selectedCategory = store.categories.find((category) => category._id === storefrontSelectedCategory);
-    const displayedProducts = storefrontSelectedCategory
+    const q = storefrontSearchQuery.trim().toLowerCase();
+    const baseProducts = storefrontSelectedCategory
       ? getProductsForCategory(storefrontSelectedCategory)
       : store.products;
+    const displayedProducts = q
+      ? baseProducts.filter(p => p.name.toLowerCase().includes(q) || (p.shortDescription || '').toLowerCase().includes(q) || (p.description || '').toLowerCase().includes(q))
+      : baseProducts;
 
     return (
       <div className="page-shell">
@@ -873,15 +976,28 @@ export default function AppClient({ initialData, initialMode = 'dashboard', stor
                 </button>
               )}
               {!isSellerPreview && (
-                <button className="soft-button-ghost button-with-icon" onClick={() => setShowCart(true)}>
-                  <ButtonIcon symbol="🛒" />Cart ({cartCount})
-                </button>
+                <>
+                  <button className="soft-button-ghost button-with-icon" onClick={() => { setShowTrackOrder(true); setTrackResult(null); setTrackError(''); setTrackForm({ orderNumber: '', contact: '' }); }}>
+                    <ButtonIcon symbol="↻" />Track order
+                  </button>
+                  <button className="soft-button-ghost button-with-icon" onClick={() => setShowCart(true)}>
+                    <ButtonIcon symbol="🛒" />Cart ({cartCount})
+                  </button>
+                </>
               )}
             </div>
           </div>
         </div>
 
         <div className="container" style={{ paddingTop: '1.5rem' }}>
+          <div style={{ marginBottom: '1rem' }}>
+            <input
+              className="storefront-search-input"
+              value={storefrontSearchQuery}
+              onChange={(e) => setStorefrontSearchQuery(e.target.value)}
+              placeholder="Search products…"
+            />
+          </div>
           <div className="section-head dashboard-toolbar" style={{ marginBottom: '1rem' }}>
             <div className="tag-row">
               <button
@@ -901,21 +1017,17 @@ export default function AppClient({ initialData, initialMode = 'dashboard', stor
               ))}
             </div>
             <div className="muted">
-              {selectedCategory ? selectedCategory.name : 'Browse by curated categories'}
+              {storefrontSearchQuery ? `${displayedProducts.length} result${displayedProducts.length !== 1 ? 's' : ''}` : selectedCategory ? selectedCategory.name : 'Browse by curated categories'}
             </div>
           </div>
 
-          {!storefrontSelectedCategory ? (
-            store.products.length > 0 ? (
-              <div className="store-grid storefront-grid">
-                {store.products.map((product) => productCard(product, true))}
-              </div>
-            ) : (
-              <div className="empty-state soft-card section-block">No products available yet.</div>
-            )
-          ) : (
+          {displayedProducts.length > 0 ? (
             <div className="store-grid storefront-grid">
               {displayedProducts.map((product) => productCard(product, true))}
+            </div>
+          ) : (
+            <div className="empty-state soft-card section-block">
+              {storefrontSearchQuery ? `No products found for "${storefrontSearchQuery}"` : 'No products available yet.'}
             </div>
           )}
         </div>
@@ -958,7 +1070,7 @@ export default function AppClient({ initialData, initialMode = 'dashboard', stor
           {[
             ['products', 'Products & Categories'],
             ['profileLinks', 'Links & Profile'],
-            ['orders', 'Orders'],
+            ['orders', `Orders${newOrderCount > 0 ? ` (${newOrderCount} new)` : ''}`],
             ['settings', 'Store Settings']
           ].map(([key, label]) => (
             <button
@@ -1129,7 +1241,14 @@ export default function AppClient({ initialData, initialMode = 'dashboard', stor
           </div>
         )}
 
-        {dashboardTab === 'orders' && (
+        {dashboardTab === 'orders' && (() => {
+          // Mark as seen when tab is opened
+          const totalOrders = (store.orders || []).filter(o => !o.sellerDeletedAt).length;
+          if (newOrderCount > 0) {
+            setLastSeenOrderCount(totalOrders);
+            try { localStorage.setItem('lastSeenOrderCount', String(totalOrders)); } catch {}
+          }
+          return (
           <section style={{ marginTop: '1.5rem' }}>
             <div className="order-summary-grid" style={{ marginBottom: '1rem' }}>
               {buildOrderSummary(store.orders).map((item) => (
@@ -1223,14 +1342,38 @@ export default function AppClient({ initialData, initialMode = 'dashboard', stor
                       </div>
                       <div className="note-box">
                         <strong>Order summary</strong>
-                        <div style={{ marginTop: '0.45rem' }}>{formatMoney(order.total)}</div>
+                        <div style={{ marginTop: '0.45rem' }}>
+                          {order.productTotal > 0 && order.deliveryCharge > 0 ? (
+                            <>
+                              <div className="muted" style={{ fontSize: '0.85rem' }}>Products: {formatMoney(order.productTotal)}</div>
+                              <div className="muted" style={{ fontSize: '0.85rem' }}>Delivery ({order.deliveryZone === 'outside' ? 'Outside Dhaka' : 'Inside Dhaka'}): {formatMoney(order.deliveryCharge)}</div>
+                              <strong>Total: {formatMoney(order.total)}</strong>
+                            </>
+                          ) : <strong>{formatMoney(order.total)}</strong>}
+                        </div>
                         <div className="muted">{order.source || 'Direct link'} • {new Date(order.createdAt).toLocaleString()}</div>
                       </div>
                     </div>
 
-                    <div className="order-items-inline" style={{ marginTop: '1rem' }}>
+                    <div className="order-items-rich" style={{ marginTop: '1rem' }}>
                       {order.items.map((item) => (
-                        <span className="tag" key={`${order._id}-${item.name}`}>{item.name} × {item.quantity}</span>
+                        <div className="order-item-row" key={`${order._id}-${item.name}`}>
+                          {item.imageUrl ? (
+                            <img src={item.imageUrl} alt={item.name} className="order-item-thumb" />
+                          ) : (
+                            <div className="order-item-thumb order-item-thumb-placeholder">{item.name.charAt(0)}</div>
+                          )}
+                          <div className="order-item-info">
+                            <div style={{ fontWeight: 600 }}>{item.name}</div>
+                            {(item.selectedOptions?.size || item.selectedOptions?.color || item.selectedOptions?.varietyName) && (
+                              <div className="muted" style={{ fontSize: '0.82rem' }}>
+                                {[item.selectedOptions?.size, item.selectedOptions?.color, item.selectedOptions?.varietyName].filter(Boolean).join(' · ')}
+                              </div>
+                            )}
+                            <div className="muted" style={{ fontSize: '0.82rem' }}>Qty {item.quantity} · {formatMoney(item.price)} each</div>
+                          </div>
+                          <div style={{ fontWeight: 600, marginLeft: 'auto' }}>{formatMoney(item.price * item.quantity)}</div>
+                        </div>
                       ))}
                     </div>
 
@@ -1278,20 +1421,29 @@ export default function AppClient({ initialData, initialMode = 'dashboard', stor
                     </div>
 
                     <div className="soft-card" style={{ padding: '0.9rem', marginTop: '1rem' }}>
-                      <label className="field">
-                        <span>Seller private note</span>
-                        <textarea defaultValue={order.sellerNote || ''} onBlur={(event) => handleSaveSellerNote(order._id, event.target.value)} placeholder="Called customer, size confirmed, urgent, etc." />
-                      </label>
+                      {(() => {
+                        const [sellerNoteText, setSellerNoteText] = [order.sellerNote || '', (v) => {}];
+                        return (
+                          <SellerNoteField
+                            orderId={order._id}
+                            initialNote={order.sellerNote || ''}
+                            onSave={handleSaveSellerNote}
+                          />
+                        );
+                      })()}
+                      <div className="note-box" style={{ marginTop: '0.8rem', fontSize: '0.82rem' }}>
+                        <strong>Template variables:</strong> <code>{"{{customerName}}"}</code> <code>{"{{orderNumber}}"}</code> <code>{"{{total}}"}</code> <code>{"{{items}}"}</code> <code>{"{{address}}"}</code> <code>{"{{phone}}"}</code>
+                      </div>
                       <div className="tag-row" style={{ marginTop: '0.8rem' }}>
-                        <button className="soft-button-ghost" onClick={() => copyTemplate(store.profile?.orderConfirmationTemplate || '')}>Copy confirm template</button>
-                        <button className="soft-button-ghost" onClick={() => copyTemplate(store.profile?.deliveryUpdateTemplate || '')}>Copy packed template</button>
-                        <button className="soft-button-ghost" onClick={() => copyTemplate(store.profile?.outForDeliveryTemplate || '')}>Copy delivery template</button>
+                        <button className="soft-button-ghost" onClick={() => copyTemplate(store.profile?.orderConfirmationTemplate || '', order)}>Copy confirm template</button>
+                        <button className="soft-button-ghost" onClick={() => copyTemplate(store.profile?.deliveryUpdateTemplate || '', order)}>Copy packed template</button>
+                        <button className="soft-button-ghost" onClick={() => copyTemplate(store.profile?.outForDeliveryTemplate || '', order)}>Copy delivery template</button>
                       </div>
                     </div>
 
                     {timeline.length > 0 && (
                       <div className="order-timeline" style={{ marginTop: '1rem' }}>
-                        {timeline.slice(-4).reverse().map((event, index) => (
+                        {timeline.slice(-6).reverse().map((event, index) => (
                           <div className="order-timeline-item" key={`${order._id}-${index}-${event.action}`}>
                             <span className="timeline-dot" />
                             <div>
@@ -1308,7 +1460,8 @@ export default function AppClient({ initialData, initialMode = 'dashboard', stor
               })()}
             </div>
           </section>
-        )}
+          );
+        })()}
 
         {dashboardTab === 'settings' && (
           <form className="soft-card section-block" style={{ marginTop: '1.5rem' }} onSubmit={handleProfileSave}>
@@ -1455,9 +1608,12 @@ export default function AppClient({ initialData, initialMode = 'dashboard', stor
               Payment methods are locked to <strong>Cash on delivery</strong>. Your preferred currency controls how prices appear across the dashboard and storefront. Use the delivery and policy fields below to answer buyer questions automatically and stay consistent across products.
             </div>
             <div className="form-grid dashboard-form-stack" style={{ flexDirection: 'column', marginTop: '1rem' }}>
+              <div className="note-box" style={{ marginTop: '0.5rem', fontSize: '0.82rem' }}>
+                Use these placeholders in templates — they auto-fill with real order data when you copy: <code>{"{{customerName}}"}</code> <code>{"{{orderNumber}}"}</code> <code>{"{{total}}"}</code> <code>{"{{items}}"}</code> <code>{"{{address}}"}</code> <code>{"{{phone}}"}</code>
+              </div>
               <label className="field">
                 <span>Order confirmation template</span>
-                <textarea value={store.profile.orderConfirmationTemplate || ''} onChange={(event) => setStore((current) => ({ ...current, profile: { ...(current.profile || {}), orderConfirmationTemplate: event.target.value } }))} />
+                <textarea value={store.profile.orderConfirmationTemplate || ''} onChange={(event) => setStore((current) => ({ ...current, profile: { ...(current.profile || {}), orderConfirmationTemplate: event.target.value } }))} placeholder="Hi {{customerName}}, your order #{{orderNumber}} is confirmed! Total: {{total}}. We'll contact you for delivery." />
               </label>
               <label className="field">
                 <span>Packed / ready template</span>
@@ -1790,13 +1946,39 @@ export default function AppClient({ initialData, initialMode = 'dashboard', stor
               </div>
             ))}
 
-            <div className="checkout-summary" style={{ marginTop: '1rem' }}>
+            <div style={{ marginTop: '1rem' }}>
+              <label className="field" style={{ marginBottom: 0 }}>
+                <span>Delivery zone</span>
+                <select value={deliveryZone} onChange={(e) => setDeliveryZone(e.target.value)}>
+                  <option value="inside">Inside Dhaka — {formatMoney(Number(store.profile?.deliveryInsideDhaka || 0))}</option>
+                  <option value="outside">Outside Dhaka — {formatMoney(Number(store.profile?.deliveryOutsideDhaka || 0))}</option>
+                </select>
+              </label>
+            </div>
+            {Number(store.profile?.freeDeliveryThreshold || 0) > 0 && cartTotal >= Number(store.profile?.freeDeliveryThreshold || 0) && (
+              <div className="note-box" style={{ marginTop: '0.5rem' }}>🎉 Free delivery applied!</div>
+            )}
+            <div className="checkout-summary" style={{ marginTop: '0.75rem' }}>
+              <span className="muted">Products</span>
+              <span>{formatMoney(cartTotal)}</span>
+            </div>
+            <div className="checkout-summary">
+              <span className="muted">Delivery</span>
+              <span>{formatMoney((() => {
+                const ft = Number(store.profile?.freeDeliveryThreshold || 0);
+                if (ft > 0 && cartTotal >= ft) return 0;
+                return deliveryZone === 'outside' ? Number(store.profile?.deliveryOutsideDhaka || 0) : Number(store.profile?.deliveryInsideDhaka || 0);
+              })())}</span>
+            </div>
+            <div className="checkout-summary" style={{ borderTop: '1px solid var(--border)', paddingTop: '0.5rem', marginTop: '0.25rem' }}>
               <strong>Total</strong>
-              <strong>{formatMoney(cartTotal)}</strong>
+              <strong>{formatMoney(cartTotal + (() => {
+                const ft = Number(store.profile?.freeDeliveryThreshold || 0);
+                if (ft > 0 && cartTotal >= ft) return 0;
+                return deliveryZone === 'outside' ? Number(store.profile?.deliveryOutsideDhaka || 0) : Number(store.profile?.deliveryInsideDhaka || 0);
+              })())}</strong>
             </div>
-            <div className="note-box" style={{ marginTop: '1rem' }}>
-              Checkout is limited to Cash on delivery. Delivery inside Dhaka: {formatMoney(store.profile?.deliveryInsideDhaka || 0)} · Outside Dhaka: {formatMoney(store.profile?.deliveryOutsideDhaka || 0)}{Number(store.profile?.freeDeliveryThreshold || 0) > 0 ? ` · Free over ${formatMoney(store.profile?.freeDeliveryThreshold || 0)}` : ''}.
-            </div>
+            <div className="note-box" style={{ marginTop: '0.75rem', fontSize: '0.83rem' }}>Cash on delivery only.</div>
             <div style={{ marginTop: '1rem' }}>
               <button className="soft-button button-with-icon" onClick={() => { setShowCart(false); setShowCheckout(true); }}>
                 <ButtonIcon symbol="→" />Checkout
@@ -1823,9 +2005,12 @@ export default function AppClient({ initialData, initialMode = 'dashboard', stor
                 <label className="field">
                   <span>Email</span>
                   <input
+                    type="email"
                     value={checkoutForm.email}
                     onChange={(event) => setCheckoutForm((current) => ({ ...current, email: event.target.value }))}
+                    placeholder="you@example.com"
                   />
+                  <small className="muted">Used for order tracking — we won't spam you.</small>
                 </label>
                 <label className="field">
                   <span>Phone number</span>
@@ -2282,8 +2467,183 @@ export default function AppClient({ initialData, initialMode = 'dashboard', stor
         </Modal>
       )}
 
-      {toast && <div className="toast">{toast}</div>}
+            {toast && <div className="toast">{toast}</div>}
+
+      {/* ── Order Confirmation Screen ── */}
+      {showOrderConfirmation && placedOrder && (
+        <div className="modal-overlay">
+          <div className="centered-modal order-confirm-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-card">
+              <div className="order-confirm-hero">
+                <div className="order-confirm-check">✓</div>
+                <h2 style={{ margin: '0.75rem 0 0.25rem' }}>Order placed!</h2>
+                <p className="muted" style={{ margin: 0 }}>Thank you, {placedOrder.customerName || 'Customer'}. Your order has been received.</p>
+              </div>
+              <div className="note-box order-confirm-box" style={{ marginTop: '1.25rem' }}>
+                <div className="order-confirm-row"><span className="muted">Order number</span><strong style={{ fontFamily: 'monospace' }}>#{placedOrder.orderNumber}</strong></div>
+                <div className="order-confirm-row"><span className="muted">Payment</span><span>Cash on delivery</span></div>
+                <div className="order-confirm-row"><span className="muted">Delivery</span><span>{placedOrder.deliveryZone === 'outside' ? 'Outside Dhaka' : 'Inside Dhaka'}</span></div>
+                {placedOrder.productTotal > 0 && (
+                  <>
+                    <div className="order-confirm-row"><span className="muted">Products</span><span>{formatMoney(placedOrder.productTotal)}</span></div>
+                    <div className="order-confirm-row"><span className="muted">Delivery charge</span><span>{formatMoney(placedOrder.deliveryCharge)}</span></div>
+                  </>
+                )}
+                <div className="order-confirm-row order-confirm-total"><span>Total</span><strong>{formatMoney(placedOrder.total)}</strong></div>
+              </div>
+              <div className="order-confirm-items" style={{ marginTop: '1rem' }}>
+                {(placedOrder.items || []).map((item, i) => (
+                  <div key={i} className="order-confirm-item">
+                    {item.imageUrl ? <img src={item.imageUrl} alt={item.name} /> : <div className="order-item-thumb order-item-thumb-placeholder">{item.name.charAt(0)}</div>}
+                    <div><div style={{ fontWeight: 600 }}>{item.name}</div><div className="muted" style={{ fontSize: '0.82rem' }}>Qty {item.quantity}</div></div>
+                    <span style={{ marginLeft: 'auto' }}>{formatMoney(item.price * item.quantity)}</span>
+                  </div>
+                ))}
+              </div>
+              <div className="note-box" style={{ marginTop: '1rem', fontSize: '0.85rem' }}>
+                Save your order number <strong>#{placedOrder.orderNumber}</strong> — you can use it to track your order using the <em>Track order</em> button in the store.
+              </div>
+              <div style={{ marginTop: '1rem', display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
+                <button className="soft-button" onClick={() => {
+                  setShowOrderConfirmation(false);
+                  setPlacedOrder(null);
+                  setShowTrackOrder(true);
+                  setTrackForm({ orderNumber: placedOrder.orderNumber, contact: '' });
+                  setTrackResult(null);
+                  setTrackError('');
+                }}>
+                  Track my order
+                </button>
+                <button className="soft-button-ghost" onClick={() => { setShowOrderConfirmation(false); setPlacedOrder(null); }}>
+                  Continue shopping
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Track Order Modal ── */}
+      {showTrackOrder && (
+        <div className="modal-overlay" onClick={() => { setShowTrackOrder(false); setTrackResult(null); setTrackError(''); }}>
+          <div className="centered-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-card">
+              <div className="drawer-header">
+                <h2 style={{ margin: 0 }}>Track your order</h2>
+                <button className="soft-button-ghost" onClick={() => { setShowTrackOrder(false); setTrackResult(null); setTrackError(''); }}>Close</button>
+              </div>
+              <div style={{ marginTop: '1rem' }}>
+                {!trackResult ? (
+                  <>
+                    <p className="muted">Enter your order number and the phone number or email you used at checkout.</p>
+                    <label className="field" style={{ marginTop: '0.75rem' }}>
+                      <span>Order number</span>
+                      <input
+                        value={trackForm.orderNumber}
+                        onChange={(e) => setTrackForm(f => ({ ...f, orderNumber: e.target.value }))}
+                        placeholder="e.g. ORD8K3FX2A"
+                        style={{ textTransform: 'uppercase' }}
+                      />
+                    </label>
+                    <label className="field" style={{ marginTop: '0.75rem' }}>
+                      <span>Phone or email</span>
+                      <input
+                        value={trackForm.contact}
+                        onChange={(e) => setTrackForm(f => ({ ...f, contact: e.target.value }))}
+                        placeholder="01XXXXXXXXX or you@example.com"
+                      />
+                    </label>
+                    {trackError && <div className="status-error" style={{ marginTop: '0.5rem', fontSize: '0.9rem' }}>✗ {trackError}</div>}
+                    <div style={{ marginTop: '1rem', display: 'flex', gap: '0.75rem' }}>
+                      <button className="soft-button" onClick={handleTrackOrder} disabled={trackLoading}>
+                        {trackLoading ? 'Searching…' : 'Find my order'}
+                      </button>
+                      <button className="soft-button-ghost" onClick={() => { setShowTrackOrder(false); setTrackResult(null); setTrackError(''); }}>Cancel</button>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div className="order-confirm-box note-box">
+                      <div className="order-confirm-row"><span className="muted">Order</span><strong style={{ fontFamily: 'monospace' }}>#{trackResult.orderNumber}</strong></div>
+                      <div className="order-confirm-row"><span className="muted">Customer</span><span>{trackResult.customerName}</span></div>
+                      <div className="order-confirm-row"><span className="muted">Status</span><span className={`status-pill status-${trackResult.status}`}>{ORDER_STATUS_LABELS[trackResult.status] || trackResult.status}</span></div>
+                      {trackResult.deliveryCharge > 0 && (
+                        <>
+                          <div className="order-confirm-row"><span className="muted">Products</span><span>{formatMoney(trackResult.productTotal)}</span></div>
+                          <div className="order-confirm-row"><span className="muted">Delivery</span><span>{formatMoney(trackResult.deliveryCharge)}</span></div>
+                        </>
+                      )}
+                      <div className="order-confirm-row order-confirm-total"><span>Total</span><strong>{formatMoney(trackResult.total)}</strong></div>
+                    </div>
+                    <div className="order-progress-steps" style={{ marginTop: '1rem' }}>
+                      {ORDER_PROGRESS_STEPS.map((step) => {
+                        const normStatus = trackResult.status === 'processing' ? 'packed' : trackResult.status === 'shipped' ? 'out_for_delivery' : trackResult.status;
+                        const active = ORDER_PROGRESS_STEPS.indexOf(step) <= ORDER_PROGRESS_STEPS.indexOf(normStatus);
+                        const cancelled = normStatus === 'cancelled';
+                        return (
+                          <div className={`order-progress-step ${active && !cancelled ? 'active' : ''} ${cancelled ? 'cancelled' : ''}`} key={step}>
+                            <span className="step-dot" />
+                            <span>{ORDER_STATUS_LABELS[step]}</span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                    {(trackResult.timeline || []).length > 0 && (
+                      <div className="order-timeline" style={{ marginTop: '1rem' }}>
+                        {[...(trackResult.timeline || [])].reverse().map((event, i) => (
+                          <div className="order-timeline-item" key={i}>
+                            <span className="timeline-dot" />
+                            <div>
+                              <div style={{ fontWeight: 600 }}>{ORDER_STATUS_LABELS[event.status] || event.status}</div>
+                              <div className="muted">{event.note}</div>
+                              <div className="muted-2" style={{ fontSize: '0.8rem' }}>{new Date(event.createdAt).toLocaleString()}</div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    <div style={{ marginTop: '1rem', display: 'flex', gap: '0.75rem' }}>
+                      <button className="soft-button-ghost" onClick={() => { setTrackResult(null); setTrackError(''); setTrackForm({ orderNumber: '', contact: '' }); }}>Track another</button>
+                      <button className="soft-button-ghost" onClick={() => { setShowTrackOrder(false); setTrackResult(null); setTrackError(''); }}>Close</button>
+                    </div>
+                  </>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </>
+  );
+}
+
+// SellerNoteField — controlled textarea with explicit Save button
+function SellerNoteField({ orderId, initialNote, onSave }) {
+  const [note, setNote] = useState(initialNote);
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+
+  async function save() {
+    setSaving(true);
+    await onSave(orderId, note);
+    setSaving(false);
+    setSaved(true);
+    setTimeout(() => setSaved(false), 2500);
+  }
+
+  return (
+    <div>
+      <label className="field">
+        <span>Seller private note</span>
+        <textarea value={note} onChange={(e) => { setNote(e.target.value); setSaved(false); }} placeholder="Called customer, size confirmed, urgent, etc." />
+      </label>
+      <div style={{ marginTop: '0.5rem', display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+        <button className="soft-button-ghost" onClick={save} disabled={saving}>
+          {saving ? 'Saving…' : 'Save note'}
+        </button>
+        {saved && <span className="status-ok" style={{ fontSize: '0.85rem' }}>✓ Saved</span>}
+      </div>
+    </div>
   );
 }
 

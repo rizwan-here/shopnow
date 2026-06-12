@@ -2158,3 +2158,128 @@ img {
     grid-template-columns: 1fr;
   }
 }
+
+/* ── Storefront search ── */
+.storefront-search-input {
+  width: 100%;
+  padding: 0.7rem 1rem;
+  border: 1px solid var(--border);
+  border-radius: 2rem;
+  font-size: 0.95rem;
+  background: var(--surface, #fff);
+  outline: none;
+  transition: border-color 0.15s;
+}
+.storefront-search-input:focus {
+  border-color: var(--accent, #4f6df5);
+}
+
+/* ── Out-of-stock dim on storefront ── */
+.product-card-sold-out {
+  opacity: 0.55;
+  filter: grayscale(0.4);
+}
+
+/* ── Order items rich view (seller detail) ── */
+.order-items-rich {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+.order-item-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.6rem 0.8rem;
+  background: var(--surface-2, #f8f8f8);
+  border-radius: 0.75rem;
+}
+.order-item-thumb {
+  width: 52px;
+  height: 52px;
+  border-radius: 0.5rem;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+.order-item-thumb-placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--soft-2, #e8e8e8);
+  color: var(--muted, #888);
+  font-weight: 700;
+  font-size: 1.1rem;
+  width: 52px;
+  height: 52px;
+  border-radius: 0.5rem;
+  flex-shrink: 0;
+}
+.order-item-info {
+  flex: 1;
+  min-width: 0;
+}
+
+/* ── Order confirmation screen ── */
+.order-confirm-modal {
+  width: min(540px, calc(100% - 1rem));
+}
+.order-confirm-hero {
+  text-align: center;
+  padding: 0.5rem 0 0;
+}
+.order-confirm-check {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: #2c7a55;
+  color: white;
+  font-size: 1.6rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto;
+}
+.order-confirm-box {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+.order-confirm-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  font-size: 0.9rem;
+}
+.order-confirm-total {
+  border-top: 1px solid var(--border);
+  padding-top: 0.4rem;
+  margin-top: 0.2rem;
+  font-size: 1rem;
+}
+.order-confirm-items {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+.order-confirm-item {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  font-size: 0.9rem;
+}
+.order-confirm-item img {
+  width: 40px;
+  height: 40px;
+  border-radius: 0.4rem;
+  object-fit: cover;
+}
+
+/* ── Template code hints ── */
+code {
+  background: var(--soft-2, #f0f0f0);
+  padding: 0.1em 0.35em;
+  border-radius: 0.3rem;
+  font-size: 0.82em;
+  font-family: monospace;
+}

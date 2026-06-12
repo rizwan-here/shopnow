@@ -6,6 +6,7 @@ const OrderItemSchema = new Schema(
     name: String,
     price: Number,
     quantity: Number,
+    imageUrl: { type: String, default: '' },
     selectedOptions: {
       size: { type: String, default: '' },
       color: { type: String, default: '' },
@@ -48,6 +49,9 @@ const OrderSchema = new Schema(
       enum: ['pending', 'processing', 'shipped', 'confirmed', 'packed', 'out_for_delivery', 'delivered', 'cancelled'],
       default: 'pending'
     },
+    deliveryZone: { type: String, enum: ['inside', 'outside'], default: 'inside' },
+    deliveryCharge: { type: Number, default: 0 },
+    productTotal: { type: Number, default: 0 },
     total: { type: Number, required: true },
     items: [OrderItemSchema],
     timeline: {
