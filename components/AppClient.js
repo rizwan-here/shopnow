@@ -242,8 +242,8 @@ export default function AppClient({ initialData, initialMode = 'dashboard', stor
     const endpoint = slug ? `/api/bootstrap?slug=${encodeURIComponent(slug)}` : '/api/bootstrap';
     const response = await fetch(endpoint, { cache: 'no-store' });
     const data = await response.json();
-    if (data?.profile) {
-      setStore(data);
+    if (data && typeof data === 'object') {
+      setStore(data.profile ? data : EMPTY_STORE);
     }
     return data;
   }
@@ -555,6 +555,7 @@ export default function AppClient({ initialData, initialMode = 'dashboard', stor
     setDeleteConfirmSlug('');
     setDeleteConfirmText('');
     setToast('Your store has been deleted');
+    setStore(EMPTY_STORE);
     await signOut({ callbackUrl: '/' });
   }
 
