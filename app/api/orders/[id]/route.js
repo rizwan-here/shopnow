@@ -27,8 +27,8 @@ export async function DELETE(request, { params }) {
   const order = await Order.findOne({ _id: params.id, storeSlug: profile.slug, sellerDeletedAt: null });
   if (!order) return NextResponse.json({ error: 'Order not found' }, { status: 404 });
 
-  if (body.orderNumber !== order.orderNumber || body.confirmText !== 'DELETE') {
-    return NextResponse.json({ error: 'Double confirmation did not match' }, { status: 400 });
+  if (!body.confirmed) {
+    return NextResponse.json({ error: 'Confirmation required' }, { status: 400 });
   }
 
   order.sellerDeletedAt = new Date();

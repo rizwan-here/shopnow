@@ -1,4 +1,7 @@
 import './globals.css';
+import { startKeepAlive } from '@/lib/keep-alive';
+
+startKeepAlive();
 import AuthSessionProvider from '@/components/SessionProvider';
 import GlobalFooter from '@/components/GlobalFooter';
 import { Manrope, Playfair_Display } from 'next/font/google';

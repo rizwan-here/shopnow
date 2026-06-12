@@ -126,8 +126,7 @@ export default function AppClient({ initialData, initialMode = 'dashboard', stor
   const [orderStatusFilter, setOrderStatusFilter] = useState('all');
   const [selectedOrderId, setSelectedOrderId] = useState('');
   const [orderDeleteTarget, setOrderDeleteTarget] = useState(null);
-  const [orderDeleteNumber, setOrderDeleteNumber] = useState('');
-  const [orderDeleteText, setOrderDeleteText] = useState('');
+  const [orderDeleteChecked, setOrderDeleteChecked] = useState(false);
   const [usernameCheck, setUsernameCheck] = useState({ status: 'idle', message: '' });
   const [editingProduct, setEditingProduct] = useState(null);
   const [editingPriceProduct, setEditingPriceProduct] = useState(null);
@@ -820,29 +819,25 @@ export default function AppClient({ initialData, initialMode = 'dashboard', stor
   }
 
   async function handleHideOrderRecord() {
-    if (!orderDeleteTarget) return;
+    if (!orderDeleteTarget || !orderDeleteChecked) return;
     const response = await fetch(`/api/orders/${orderDeleteTarget._id}`, {
       method: 'DELETE',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        orderNumber: orderDeleteNumber.trim(),
-        confirmText: orderDeleteText.trim()
-      })
+      body: JSON.stringify({ confirmed: true })
     });
 
     const data = await response.json().catch(() => ({}));
     if (!response.ok) {
-      setToast(data?.error || 'Could not delete order record from app view');
+      setToast(data?.error || 'Could not delete order record');
       return;
     }
 
     setModal(null);
     setOrderDeleteTarget(null);
-    setOrderDeleteNumber('');
-    setOrderDeleteText('');
+    setOrderDeleteChecked(false);
     setSelectedOrderId('');
     await refreshStore();
-    setToast('Order record removed from app view');
+    setToast('Order record removed from view');
   }
 
   async function copyTemplate(templateText, order = null) {
@@ -1411,8 +1406,7 @@ export default function AppClient({ initialData, initialMode = 'dashboard', stor
                         type="button"
                         onClick={() => {
                           setOrderDeleteTarget(order);
-                          setOrderDeleteNumber('');
-                          setOrderDeleteText('');
+                          setOrderDeleteChecked(false);
                           setModal('delete-order-record');
                         }}
                       >
@@ -2414,31 +2408,71 @@ export default function AppClient({ initialData, initialMode = 'dashboard', stor
       )}
 
 
-      {modal === 'delete-order-record' && orderDeleteTarget && (
-        <Modal onClose={() => setModal(null)} title="Delete order record from app view">
-          <div className="note-box" style={{ marginBottom: '1rem' }}>
-            <strong>This will only remove the order from the seller dashboard view.</strong> The database record is kept for recovery, audit, and future admin use.
-          </div>
-          <div className="form-grid dashboard-form-stack" style={{ flexDirection: 'column' }}>
-            <label className="field">
-              <span>First confirmation: enter the order ID</span>
-              <input value={orderDeleteNumber} onChange={(event) => setOrderDeleteNumber(event.target.value)} placeholder={orderDeleteTarget.orderNumber} />
+      {modal === 'delete-order-record' && orderDeleteTarget && (() => {
+        const o = orderDeleteTarget;
+        const itemSummary = (o.items || []).map(i => `${i.name} ×${i.quantity}`).join(', ');
+        return (
+          <Modal onClose={() => { setModal(null); setOrderDeleteChecked(false); }} title="Remove order from view">
+            {/* Step 1 — show what's being deleted */}
+            <div className="order-delete-preview">
+              <div className="order-delete-preview-row">
+                <span className="muted">Order</span>
+                <strong style={{ fontFamily: 'monospace' }}>#{o.orderNumber}</strong>
+              </div>
+              <div className="order-delete-preview-row">
+                <span className="muted">Customer</span>
+                <span>{o.customerName}</span>
+              </div>
+              {o.customerPhone && (
+                <div className="order-delete-preview-row">
+                  <span className="muted">Phone</span>
+                  <span>{o.customerPhone}</span>
+                </div>
+              )}
+              <div className="order-delete-preview-row">
+                <span className="muted">Items</span>
+                <span style={{ textAlign: 'right', maxWidth: '60%' }}>{itemSummary}</span>
+              </div>
+              <div className="order-delete-preview-row">
+                <span className="muted">Total</span>
+                <span>{formatMoney(o.total)}</span>
+              </div>
+              <div className="order-delete-preview-row">
+                <span className="muted">Status</span>
+                <span className={`status-pill status-${o.status}`}>{ORDER_STATUS_LABELS[o.status] || o.status}</span>
+              </div>
+            </div>
+
+            {/* Step 2 — single clear checkbox */}
+            <label className="order-delete-confirm-label" style={{ marginTop: '1.1rem' }}>
+              <input
+                type="checkbox"
+                checked={orderDeleteChecked}
+                onChange={(e) => setOrderDeleteChecked(e.target.checked)}
+              />
+              <span>I've noted this order and want to hide it from the dashboard view</span>
             </label>
-            <label className="field">
-              <span>Second confirmation: type DELETE</span>
-              <input value={orderDeleteText} onChange={(event) => setOrderDeleteText(event.target.value)} placeholder="DELETE" />
-            </label>
-          </div>
-          <div className="checkout-actions" style={{ justifyContent: 'flex-end', marginTop: '1rem' }}>
-            <button className="soft-button-ghost" onClick={() => setModal(null)}>
-              Cancel
-            </button>
-            <button className="soft-button-danger" onClick={handleHideOrderRecord}>
-              Delete record from app
-            </button>
-          </div>
-        </Modal>
-      )}
+
+            <div className="note-box" style={{ marginTop: '0.85rem', fontSize: '0.83rem' }}>
+              This only hides the record from your view. The order stays in the database for recovery.
+            </div>
+
+            <div className="checkout-actions" style={{ justifyContent: 'flex-end', marginTop: '1rem' }}>
+              <button className="soft-button-ghost" onClick={() => { setModal(null); setOrderDeleteChecked(false); }}>
+                Cancel
+              </button>
+              <button
+                className="soft-button-danger"
+                onClick={handleHideOrderRecord}
+                disabled={!orderDeleteChecked}
+                style={{ opacity: orderDeleteChecked ? 1 : 0.45 }}
+              >
+                Hide from dashboard
+              </button>
+            </div>
+          </Modal>
+        );
+      })()}
 
 
       {modal === 'delete-store' && store?.profile && (
