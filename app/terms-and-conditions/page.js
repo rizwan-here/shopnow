@@ -64,7 +64,7 @@ export default function TermsAndConditionsPage() {
 
         <h2>16. Governing law and contact</h2>
         <p>These Terms are governed by the laws of <strong>Bangladesh</strong>.</p>
-        <p><strong>Support Email:</strong> <a href="mailto:storeatgoofficial.contact@gmail.com">storeatgoofficial.contact@gmail.com</a></p>
+        <p><strong>Support Email:</strong> <a href="mailto:storeatgo@gmail.com">storeatgoofficial.contact@gmail.com</a></p>
         <p><strong>Legal Entity:</strong> Storeatgo</p>
         <p><strong>Business Address:</strong> Mirpur, Dhaka, Bangladesh</p>
       </section>

@@ -60,7 +60,7 @@ export default function PrivacyPolicyPage() {
         <p>We may update this Privacy Policy from time to time. When we do, we will revise the effective or last updated date on this page. Continued use of Storeatgo after the updated policy takes effect means you accept the revised version.</p>
 
         <h2>13. Contact information</h2>
-        <p><strong>Support Email:</strong> <a href="mailto:storeatgoofficial.contact@gmail.com">storeatgoofficial.contact@gmail.com</a></p>
+        <p><strong>Support Email:</strong> <a href="mailto:storeatgo@gmail.com">storeatgoofficial.contact@gmail.com</a></p>
         <p><strong>Legal Entity:</strong> Storeatgo</p>
         <p><strong>Business Address:</strong> Mirpur, Dhaka, Bangladesh</p>
         <p><strong>Country:</strong> Bangladesh</p>

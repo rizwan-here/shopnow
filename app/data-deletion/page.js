@@ -122,7 +122,7 @@ export default function DataDeletionPage() {
           <p>
             <strong>Storeatgo</strong>
             <br />
-            <strong>Email:</strong> storeatgoofficial.contact@gmail.com
+            <strong>Email:</strong> storeatgo@gmail.com
             <br />
             <strong>Business Name / Operator:</strong> Storeatgo
             <br />
