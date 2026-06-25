@@ -1145,6 +1145,7 @@ export default function AppClient({ initialData, initialMode = 'dashboard', stor
             ['products', 'Products & Categories'],
             ['profileLinks', 'Links & Profile'],
             ['orders', `Orders${newOrderCount > 0 ? ` (${newOrderCount} new)` : ''}`],
+            ['analytics', '📊 Analytics'],
             ['settings', 'Store Settings']
           ].map(([key, label]) => (
             <button
@@ -1539,6 +1540,8 @@ export default function AppClient({ initialData, initialMode = 'dashboard', stor
           );
         })()}
 
+        {dashboardTab === 'analytics' && renderAnalytics()}
+
         {dashboardTab === 'settings' && (
           <form className="soft-card section-block" style={{ marginTop: '1.5rem' }} onSubmit={handleProfileSave}>
             <h2 style={{ marginTop: 0 }}>Store identity</h2>
@@ -1745,6 +1748,408 @@ export default function AppClient({ initialData, initialMode = 'dashboard', stor
           </form>
         )}
       </div>
+    );
+  }
+
+  function renderAnalytics() {
+    const orders = store.orders || [];
+    const products = store.products || [];
+    const now = new Date();
+
+    // ── helper: normalise status
+    function ns(status) {
+      if (status === 'processing') return 'packed';
+      if (status === 'shipped') return 'out_for_delivery';
+      return status || 'pending';
+    }
+
+    const completedOrders = orders.filter(o => ns(o.status) === 'delivered' && !o.sellerDeletedAt);
+    const cancelledOrders = orders.filter(o => ns(o.status) === 'cancelled' && !o.sellerDeletedAt);
+    const activeOrders    = orders.filter(o => ['pending','confirmed','packed','out_for_delivery'].includes(ns(o.status)) && !o.sellerDeletedAt);
+
+    const totalRevenue    = completedOrders.reduce((s, o) => s + (o.total || 0), 0);
+    const totalOrders     = orders.filter(o => !o.sellerDeletedAt).length;
+    const avgOrderValue   = completedOrders.length ? totalRevenue / completedOrders.length : 0;
+    const deliveryRevenue = completedOrders.reduce((s, o) => s + (o.deliveryCharge || 0), 0);
+    const productRevenue  = totalRevenue - deliveryRevenue;
+    const conversionRate  = totalOrders > 0 ? Math.round((completedOrders.length / totalOrders) * 100) : 0;
+    const cancellationRate = totalOrders > 0 ? Math.round((cancelledOrders.length / totalOrders) * 100) : 0;
+
+    // ── Revenue over last 8 weeks (Mon-based)
+    function getMondayOf(date) {
+      const d = new Date(date);
+      const day = d.getDay();
+      const diff = (day === 0 ? -6 : 1 - day);
+      d.setDate(d.getDate() + diff);
+      d.setHours(0,0,0,0);
+      return d;
+    }
+
+    const weeklyBuckets = {};
+    for (let i = 7; i >= 0; i--) {
+      const monday = getMondayOf(new Date(now.getTime() - i * 7 * 86400000));
+      const key = monday.toISOString().slice(0,10);
+      weeklyBuckets[key] = { key, label: monday.toLocaleDateString('en-GB', { day:'numeric', month:'short' }), revenue: 0, count: 0 };
+    }
+
+    completedOrders.forEach(o => {
+      const d = new Date(o.createdAt || o.updatedAt || Date.now());
+      const monday = getMondayOf(d);
+      const key = monday.toISOString().slice(0,10);
+      if (weeklyBuckets[key]) {
+        weeklyBuckets[key].revenue += (o.total || 0);
+        weeklyBuckets[key].count  += 1;
+      }
+    });
+    const weeks = Object.values(weeklyBuckets);
+    const maxRevenue = Math.max(...weeks.map(w => w.revenue), 1);
+
+    // ── Revenue by day of week
+    const dayLabels = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+    const byDay = Array(7).fill(0);
+    completedOrders.forEach(o => {
+      const d = new Date(o.createdAt || o.updatedAt || Date.now());
+      byDay[d.getDay()] += (o.total || 0);
+    });
+    const maxDay = Math.max(...byDay, 1);
+
+    // ── Top products by revenue
+    const productMap = {};
+    completedOrders.forEach(o => {
+      (o.items || []).forEach(item => {
+        const key = item.productId || item.name;
+        if (!productMap[key]) productMap[key] = { name: item.name, revenue: 0, units: 0, imageUrl: item.imageUrl || '' };
+        productMap[key].revenue += (item.price || 0) * (item.quantity || 1);
+        productMap[key].units   += (item.quantity || 1);
+      });
+    });
+    const topProducts = Object.values(productMap).sort((a,b) => b.revenue - a.revenue).slice(0, 5);
+
+    // ── Order source breakdown
+    const sourceMap = {};
+    orders.filter(o => !o.sellerDeletedAt).forEach(o => {
+      const src = o.source || 'Direct link';
+      sourceMap[src] = (sourceMap[src] || 0) + 1;
+    });
+    const sourceEntries = Object.entries(sourceMap).sort((a,b) => b[1]-a[1]);
+    const totalSourced  = sourceEntries.reduce((s,[,v]) => s+v, 0);
+
+    // ── Stock health
+    const inStockCount  = products.filter(p => (p.stockStatus || 'in_stock') === 'in_stock').length;
+    const lowStockCount = products.filter(p => p.stockStatus === 'low_stock').length;
+    const outOfStock    = products.filter(p => p.stockStatus === 'stock_out').length;
+
+    // ── Zone split
+    const insideCount  = orders.filter(o => o.deliveryZone === 'inside' && !o.sellerDeletedAt).length;
+    const outsideCount = orders.filter(o => o.deliveryZone === 'outside' && !o.sellerDeletedAt).length;
+    const totalZoned   = insideCount + outsideCount || 1;
+
+    // ── Recent 7-day trend vs previous 7 days
+    const sevenDaysAgo     = new Date(now.getTime() - 7  * 86400000);
+    const fourteenDaysAgo  = new Date(now.getTime() - 14 * 86400000);
+    const revenueThisWeek  = completedOrders.filter(o => new Date(o.createdAt) >= sevenDaysAgo).reduce((s,o) => s+(o.total||0), 0);
+    const revenueLastWeek  = completedOrders.filter(o => new Date(o.createdAt) >= fourteenDaysAgo && new Date(o.createdAt) < sevenDaysAgo).reduce((s,o) => s+(o.total||0), 0);
+    const weekTrend = revenueLastWeek === 0 ? null : Math.round(((revenueThisWeek - revenueLastWeek) / revenueLastWeek) * 100);
+
+    const ordersThisWeek = orders.filter(o => new Date(o.createdAt) >= sevenDaysAgo && !o.sellerDeletedAt).length;
+    const ordersLastWeek = orders.filter(o => new Date(o.createdAt) >= fourteenDaysAgo && new Date(o.createdAt) < sevenDaysAgo && !o.sellerDeletedAt).length;
+    const orderTrend = ordersLastWeek === 0 ? null : Math.round(((ordersThisWeek - ordersLastWeek) / ordersLastWeek) * 100);
+
+    function trendBadge(pct) {
+      if (pct === null) return null;
+      const up = pct >= 0;
+      return (
+        <span className={`analytics-trend-badge ${up ? 'up' : 'down'}`}>
+          {up ? '▲' : '▼'} {Math.abs(pct)}% vs last week
+        </span>
+      );
+    }
+
+    const isEmpty = totalOrders === 0;
+
+    return (
+      <section style={{ marginTop: '1.5rem', paddingBottom: '3rem' }}>
+        {/* ── Header */}
+        <div className="analytics-page-header">
+          <div>
+            <h2 style={{ margin: 0 }}>Store Analytics</h2>
+            <p className="muted" style={{ margin: '0.3rem 0 0' }}>Performance overview based on all-time order data</p>
+          </div>
+          <div className="analytics-period-badge">All time · Live</div>
+        </div>
+
+        {isEmpty ? (
+          <div className="soft-card section-block analytics-empty-state">
+            <div className="analytics-empty-icon">📊</div>
+            <h3>No data yet</h3>
+            <p className="muted">Analytics will populate automatically as orders come in. Share your store link to start getting sales.</p>
+            <button className="soft-button-secondary" onClick={() => setDashboardTab('orders')}>Go to Orders</button>
+          </div>
+        ) : (
+          <>
+            {/* ── KPI row */}
+            <div className="analytics-kpi-grid">
+              <div className="soft-card analytics-kpi-card">
+                <div className="analytics-kpi-label">Total Revenue</div>
+                <div className="analytics-kpi-value">{formatMoney(totalRevenue)}</div>
+                {trendBadge(weekTrend)}
+                <div className="analytics-kpi-sub">from {completedOrders.length} delivered orders</div>
+              </div>
+              <div className="soft-card analytics-kpi-card">
+                <div className="analytics-kpi-label">Total Orders</div>
+                <div className="analytics-kpi-value">{totalOrders}</div>
+                {trendBadge(orderTrend)}
+                <div className="analytics-kpi-sub">{activeOrders.length} currently active</div>
+              </div>
+              <div className="soft-card analytics-kpi-card">
+                <div className="analytics-kpi-label">Avg Order Value</div>
+                <div className="analytics-kpi-value">{formatMoney(avgOrderValue)}</div>
+                <div className="analytics-kpi-sub">across delivered orders</div>
+              </div>
+              <div className="soft-card analytics-kpi-card">
+                <div className="analytics-kpi-label">Delivery Rate</div>
+                <div className="analytics-kpi-value">{conversionRate}%</div>
+                <div className="analytics-kpi-sub">{cancellationRate}% cancelled</div>
+              </div>
+            </div>
+
+            {/* ── Revenue chart + Day of week */}
+            <div className="analytics-chart-row" style={{ marginTop: '1.5rem' }}>
+              <div className="soft-card analytics-chart-card">
+                <div className="analytics-section-head">
+                  <h3 style={{ margin: 0 }}>Weekly Revenue</h3>
+                  <span className="muted" style={{ fontSize: '0.83rem' }}>last 8 weeks · delivered orders</span>
+                </div>
+                <div className="analytics-bar-chart">
+                  {weeks.map(w => (
+                    <div key={w.key} className="analytics-bar-col">
+                      <div className="analytics-bar-wrap">
+                        <div
+                          className="analytics-bar"
+                          style={{ height: `${Math.max(4, Math.round((w.revenue / maxRevenue) * 100))}%` }}
+                          title={`${formatMoney(w.revenue)} · ${w.count} order${w.count !== 1 ? 's' : ''}`}
+                        >
+                          {w.revenue > 0 && (
+                            <div className="analytics-bar-tooltip">
+                              {formatMoney(w.revenue)}<br/>{w.count} order{w.count !== 1 ? 's' : ''}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                      <div className="analytics-bar-label">{w.label}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="soft-card analytics-chart-card">
+                <div className="analytics-section-head">
+                  <h3 style={{ margin: 0 }}>Best Days to Sell</h3>
+                  <span className="muted" style={{ fontSize: '0.83rem' }}>revenue by weekday</span>
+                </div>
+                <div className="analytics-hbar-list">
+                  {dayLabels.map((day, i) => (
+                    <div key={day} className="analytics-hbar-row">
+                      <div className="analytics-hbar-day">{day}</div>
+                      <div className="analytics-hbar-track">
+                        <div
+                          className="analytics-hbar-fill"
+                          style={{ width: `${Math.max(2, Math.round((byDay[i] / maxDay) * 100))}%` }}
+                        />
+                      </div>
+                      <div className="analytics-hbar-val">{formatMoney(byDay[i])}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* ── Top products + Sources */}
+            <div className="analytics-chart-row" style={{ marginTop: '1.25rem' }}>
+              <div className="soft-card analytics-chart-card">
+                <div className="analytics-section-head">
+                  <h3 style={{ margin: 0 }}>Top Products</h3>
+                  <span className="muted" style={{ fontSize: '0.83rem' }}>by delivered revenue</span>
+                </div>
+                {topProducts.length === 0 ? (
+                  <p className="muted" style={{ marginTop: '1rem' }}>No product revenue yet.</p>
+                ) : (
+                  <div className="analytics-top-products">
+                    {topProducts.map((p, i) => (
+                      <div key={p.name} className="analytics-product-row">
+                        <div className="analytics-product-rank">{i + 1}</div>
+                        {p.imageUrl ? (
+                          <img src={p.imageUrl} alt={p.name} className="analytics-product-thumb" />
+                        ) : (
+                          <div className="analytics-product-thumb analytics-thumb-placeholder">?</div>
+                        )}
+                        <div className="analytics-product-info">
+                          <div className="analytics-product-name">{p.name}</div>
+                          <div className="muted" style={{ fontSize: '0.8rem' }}>{p.units} unit{p.units !== 1 ? 's' : ''} sold</div>
+                        </div>
+                        <div className="analytics-product-rev">{formatMoney(p.revenue)}</div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <div className="soft-card analytics-chart-card">
+                <div className="analytics-section-head">
+                  <h3 style={{ margin: 0 }}>Order Sources</h3>
+                  <span className="muted" style={{ fontSize: '0.83rem' }}>where buyers come from</span>
+                </div>
+                {sourceEntries.length === 0 ? (
+                  <p className="muted" style={{ marginTop: '1rem' }}>No source data yet.</p>
+                ) : (
+                  <div className="analytics-source-list">
+                    {sourceEntries.map(([src, count]) => {
+                      const pct = Math.round((count / totalSourced) * 100);
+                      const icons = { Facebook: '📘', Instagram: '📸', WhatsApp: '💬', Messenger: '💙', 'Direct link': '🔗' };
+                      return (
+                        <div key={src} className="analytics-source-row">
+                          <div className="analytics-source-label">
+                            <span>{icons[src] || '🌐'}</span>
+                            <span>{src}</span>
+                          </div>
+                          <div className="analytics-source-track">
+                            <div className="analytics-source-fill" style={{ width: `${pct}%` }} />
+                          </div>
+                          <div className="analytics-source-pct">{count} <span className="muted">({pct}%)</span></div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* ── Inventory health + Delivery zone + Revenue breakdown */}
+            <div className="analytics-chart-row" style={{ marginTop: '1.25rem' }}>
+              <div className="soft-card analytics-chart-card">
+                <div className="analytics-section-head">
+                  <h3 style={{ margin: 0 }}>Inventory Health</h3>
+                  <span className="muted" style={{ fontSize: '0.83rem' }}>{products.length} products total</span>
+                </div>
+                <div className="analytics-stock-donut-wrap">
+                  <div className="analytics-stock-legend">
+                    <div className="analytics-stock-item">
+                      <span className="analytics-stock-dot stock-in_stock" />
+                      <span>In stock</span>
+                      <strong>{inStockCount}</strong>
+                    </div>
+                    <div className="analytics-stock-item">
+                      <span className="analytics-stock-dot stock-low_stock" />
+                      <span>Low stock</span>
+                      <strong>{lowStockCount}</strong>
+                    </div>
+                    <div className="analytics-stock-item">
+                      <span className="analytics-stock-dot stock-stock_out" />
+                      <span>Out of stock</span>
+                      <strong>{outOfStock}</strong>
+                    </div>
+                  </div>
+                  <div className="analytics-stock-bars">
+                    {products.length > 0 && (
+                      <div className="analytics-segmented-bar">
+                        {inStockCount  > 0 && <div className="seg-in"  style={{ flex: inStockCount }}  title={`In stock: ${inStockCount}`}  />}
+                        {lowStockCount > 0 && <div className="seg-low" style={{ flex: lowStockCount }} title={`Low stock: ${lowStockCount}`} />}
+                        {outOfStock    > 0 && <div className="seg-out" style={{ flex: outOfStock }}    title={`Out of stock: ${outOfStock}`} />}
+                      </div>
+                    )}
+                  </div>
+                  {outOfStock > 0 && (
+                    <div className="note-box analytics-alert" style={{ marginTop: '1rem' }}>
+                      ⚠️ {outOfStock} product{outOfStock !== 1 ? 's are' : ' is'} out of stock — update or hide to avoid bad buyer experience.
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div className="soft-card analytics-chart-card">
+                <div className="analytics-section-head">
+                  <h3 style={{ margin: 0 }}>Delivery Zones</h3>
+                  <span className="muted" style={{ fontSize: '0.83rem' }}>zone split across all orders</span>
+                </div>
+                <div className="analytics-zone-wrap">
+                  <div className="analytics-zone-row">
+                    <div className="analytics-zone-label">Inside Dhaka</div>
+                    <div className="analytics-zone-track">
+                      <div className="analytics-zone-fill inside" style={{ width: `${Math.round((insideCount / totalZoned) * 100)}%` }} />
+                    </div>
+                    <div className="analytics-zone-pct">{insideCount} <span className="muted">({Math.round((insideCount/totalZoned)*100)}%)</span></div>
+                  </div>
+                  <div className="analytics-zone-row" style={{ marginTop: '0.75rem' }}>
+                    <div className="analytics-zone-label">Outside Dhaka</div>
+                    <div className="analytics-zone-track">
+                      <div className="analytics-zone-fill outside" style={{ width: `${Math.round((outsideCount / totalZoned) * 100)}%` }} />
+                    </div>
+                    <div className="analytics-zone-pct">{outsideCount} <span className="muted">({Math.round((outsideCount/totalZoned)*100)}%)</span></div>
+                  </div>
+                </div>
+
+                <div className="analytics-section-head" style={{ marginTop: '1.5rem' }}>
+                  <h3 style={{ margin: 0 }}>Revenue Breakdown</h3>
+                </div>
+                <div className="analytics-rev-breakdown">
+                  <div className="analytics-rev-row">
+                    <span className="muted">Product revenue</span>
+                    <strong>{formatMoney(productRevenue)}</strong>
+                  </div>
+                  <div className="analytics-rev-row">
+                    <span className="muted">Delivery charges</span>
+                    <strong>{formatMoney(deliveryRevenue)}</strong>
+                  </div>
+                  <div className="analytics-rev-row analytics-rev-total">
+                    <span>Total collected</span>
+                    <strong>{formatMoney(totalRevenue)}</strong>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* ── Insights strip */}
+            <div className="analytics-insights-strip" style={{ marginTop: '1.5rem' }}>
+              {weekTrend !== null && (
+                <div className={`analytics-insight-card ${weekTrend >= 0 ? 'positive' : 'negative'}`}>
+                  <div className="analytics-insight-icon">{weekTrend >= 0 ? '🚀' : '📉'}</div>
+                  <div>
+                    <strong>{weekTrend >= 0 ? 'Revenue is up' : 'Revenue is down'} {Math.abs(weekTrend)}%</strong>
+                    <p className="muted" style={{ margin: 0, fontSize: '0.83rem' }}>Compared to the same 7-day window last week</p>
+                  </div>
+                </div>
+              )}
+              {lowStockCount > 0 && (
+                <div className="analytics-insight-card negative">
+                  <div className="analytics-insight-icon">⚡</div>
+                  <div>
+                    <strong>{lowStockCount} product{lowStockCount !== 1 ? 's' : ''} running low</strong>
+                    <p className="muted" style={{ margin: 0, fontSize: '0.83rem' }}>Restock soon to avoid losing sales</p>
+                  </div>
+                </div>
+              )}
+              {avgOrderValue > 0 && (
+                <div className="analytics-insight-card neutral">
+                  <div className="analytics-insight-icon">💡</div>
+                  <div>
+                    <strong>AOV is {formatMoney(avgOrderValue)}</strong>
+                    <p className="muted" style={{ margin: 0, fontSize: '0.83rem' }}>Try bundles or free delivery thresholds to push it higher</p>
+                  </div>
+                </div>
+              )}
+              {topProducts[0] && (
+                <div className="analytics-insight-card positive">
+                  <div className="analytics-insight-icon">⭐</div>
+                  <div>
+                    <strong>Best seller: {topProducts[0].name}</strong>
+                    <p className="muted" style={{ margin: 0, fontSize: '0.83rem' }}>{formatMoney(topProducts[0].revenue)} earned · {topProducts[0].units} units sold</p>
+                  </div>
+                </div>
+              )}
+            </div>
+          </>
+        )}
+      </section>
     );
   }
 

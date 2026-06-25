@@ -21,7 +21,15 @@ const display = Playfair_Display({
 export const metadata = {
   title: 'Storeatgo',
   description: 'Fashion-forward social storefronts for independent sellers',
-  metadataBase: new URL('https://shopnow-341d.onrender.com')
+  metadataBase: new URL('https://shopnow-341d.onrender.com'),
+  icons: {
+    icon: [
+      { url: '/favicon-16x16.png', sizes: '16x16', type: 'image/png' },
+      { url: '/favicon-32x32.png', sizes: '32x32', type: 'image/png' },
+    ],
+    apple: { url: '/apple-touch-icon.png', sizes: '180x180', type: 'image/png' },
+    shortcut: '/storeatgo-logo.png',
+  },
 };
 
 export default function RootLayout({ children }) {
