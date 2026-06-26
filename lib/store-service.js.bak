@@ -5,7 +5,6 @@ import Order from '@/models/Order';
 import Product from '@/models/Product';
 import StoreLink from '@/models/StoreLink';
 import StoreProfile from '@/models/StoreProfile';
-import Subscription from '@/models/Subscription';
 
 export async function getStorePayloadBySlug(requestedSlug) {
   await connectToDatabase();
@@ -14,25 +13,19 @@ export async function getStorePayloadBySlug(requestedSlug) {
     return null;
   }
 
-  const [categories, products, links, orders, subDoc] = await Promise.all([
+  const [categories, products, links, orders] = await Promise.all([
     Category.find({ storeSlug: profileDoc.slug }).sort({ createdAt: 1 }),
     Product.find({ storeSlug: profileDoc.slug }).sort({ featured: -1, createdAt: -1 }),
     StoreLink.find({ storeSlug: profileDoc.slug }).sort({ createdAt: 1 }),
-    Order.find({ storeSlug: profileDoc.slug, sellerDeletedAt: null }).sort({ createdAt: -1 }),
-    Subscription.findOne({ ownerId: profileDoc.ownerId }).lean()
+    Order.find({ storeSlug: profileDoc.slug, sellerDeletedAt: null }).sort({ createdAt: -1 })
   ]);
-
-  const now = new Date();
-  const sub = subDoc || { plan: 'free', adsEnabled: true, adsensePublisherId: '', adsenseBannerSlot: '', adsenseGridSlot: '' };
-  const isProActive = sub.plan === 'pro' && sub.proExpiresAt && now < new Date(sub.proExpiresAt);
 
   return {
     profile: serialiseDocument(profileDoc),
     categories: serialiseDocument(categories),
     products: serialiseDocument(products),
     links: serialiseDocument(links),
-    orders: serialiseDocument(orders),
-    subscription: serialiseDocument({ ...sub, isProActive })
+    orders: serialiseDocument(orders)
   };
 }
 
@@ -52,7 +45,6 @@ export function emptyStorePayload() {
     categories: [],
     products: [],
     links: [],
-    orders: [],
-    subscription: { plan: 'free', isProActive: false, adsEnabled: true, adsensePublisherId: '', adsenseBannerSlot: '', adsenseGridSlot: '' }
+    orders: []
   };
 }

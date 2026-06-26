@@ -6,6 +6,12 @@ import { ORDER_ACTIONS, ORDER_PROGRESS_STEPS, ORDER_STATUS_LABELS } from '@/lib/
 import BrandMark from '@/components/BrandMark';
 import { currency } from '@/lib/utils';
 import ImageCropModal from '@/components/ImageCropModal';
+import AdUnit from '@/components/AdUnit';
+
+// ── Ad slot IDs — replace these with your real AdSense slot IDs
+// Get them from: Google AdSense → Ads → By ad unit → Display ads
+const AD_SLOT_BETWEEN_PRODUCTS = '5193902330'; // slot shown inside the product grid
+const AD_SLOT_BELOW_PRODUCTS   = '3982938618'; // slot shown below the full product list
 
 const EMPTY_STORE = { profile: null, categories: [], products: [], links: [], orders: [] };
 const CURRENCY_OPTIONS = ['BDT', 'USD', 'EUR', 'GBP', 'INR', 'AED', 'SAR', 'MYR'];
@@ -1096,9 +1102,41 @@ export default function AppClient({ initialData, initialMode = 'dashboard', stor
           </div>
 
           {displayedProducts.length > 0 ? (
-            <div className="store-grid storefront-grid">
-              {displayedProducts.map((product) => productCard(product, true))}
-            </div>
+            <>
+              {/* First block: products 0–7 */}
+              <div className="store-grid storefront-grid">
+                {displayedProducts.slice(0, 8).map((product) => productCard(product, true))}
+              </div>
+
+              {/* Mid-feed ad — only shown to real buyers, not seller preview, and only when there are enough products */}
+              {!isSellerPreview && displayedProducts.length > 8 && (
+                <div className="storefront-ad-row">
+                  <AdUnit
+                    slot={AD_SLOT_BETWEEN_PRODUCTS}
+                    format="auto"
+                    className="storefront-ad-mid"
+                  />
+                </div>
+              )}
+
+              {/* Remaining products after the ad */}
+              {displayedProducts.length > 8 && (
+                <div className="store-grid storefront-grid" style={{ marginTop: '1rem' }}>
+                  {displayedProducts.slice(8).map((product) => productCard(product, true))}
+                </div>
+              )}
+
+              {/* Below-grid ad — shown after all products, not to seller preview */}
+              {!isSellerPreview && (
+                <div className="storefront-ad-row storefront-ad-row-bottom">
+                  <AdUnit
+                    slot={AD_SLOT_BELOW_PRODUCTS}
+                    format="auto"
+                    className="storefront-ad-bottom"
+                  />
+                </div>
+              )}
+            </>
           ) : (
             <div className="empty-state soft-card section-block">
               {storefrontSearchQuery ? `No products found for "${storefrontSearchQuery}"` : 'No products available yet.'}

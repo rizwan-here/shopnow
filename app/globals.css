@@ -2800,3 +2800,61 @@ code {
   line-height: 1;
 }
 
+
+/* ═══════════════════════════════════════════
+   AD UNITS — storefront only, never dashboard
+═══════════════════════════════════════════ */
+
+/* Row wrapper — full width, breathing room */
+.storefront-ad-row {
+  margin: 1.5rem 0;
+  width: 100%;
+}
+
+.storefront-ad-row-bottom {
+  margin-top: 2.5rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--border);
+}
+
+/* The ad container itself — blends with soft-card aesthetic */
+.ad-unit-wrap {
+  position: relative;
+  background: linear-gradient(180deg, rgba(255,255,255,0.92) 0%, rgba(250,248,245,0.88) 100%);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  overflow: hidden;
+  min-height: 90px;
+  box-shadow: 0 4px 16px rgba(62, 44, 31, 0.04);
+}
+
+/* "Ad" micro-label — barely visible, legally required */
+.ad-label {
+  position: absolute;
+  top: 0.4rem;
+  right: 0.6rem;
+  font-size: 0.62rem;
+  color: var(--muted-2);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  z-index: 1;
+  pointer-events: none;
+  font-weight: 500;
+}
+
+/* Mid-feed slot: full width, not too tall on mobile */
+.storefront-ad-mid {
+  width: 100%;
+}
+
+/* Below-grid slot */
+.storefront-ad-bottom {
+  width: 100%;
+}
+
+/* Make sure AdSense ins tag fills the wrapper */
+.ad-unit-wrap .adsbygoogle {
+  display: block !important;
+  width: 100%;
+}
+
