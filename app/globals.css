@@ -2858,3 +2858,458 @@ code {
   width: 100%;
 }
 
+
+/* ═══════════════════════════════════════════
+   HOMEPAGE — new static landing sections
+═══════════════════════════════════════════ */
+
+.landing-nav-links {
+  display: flex;
+  align-items: center;
+  gap: 1.75rem;
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+
+.landing-nav-links a {
+  color: var(--muted);
+  transition: color 0.15s;
+}
+
+.landing-nav-links a:hover {
+  color: var(--text);
+}
+
+@media (max-width: 768px) {
+  .landing-nav-links { display: none; }
+}
+
+.btn-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.lp-section {
+  padding: 4rem 0;
+}
+
+.lp-section-label {
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--accent);
+  margin-bottom: 0.6rem;
+}
+
+.lp-section-title {
+  font-size: clamp(1.5rem, 3vw, 2.2rem);
+  font-weight: 800;
+  margin: 0 0 2.5rem;
+  max-width: 640px;
+  line-height: 1.2;
+}
+
+/* Features grid */
+.lp-features-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 1.1rem;
+}
+
+.lp-feature-card {
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.lp-feature-card h3 {
+  font-size: 1rem;
+  font-weight: 700;
+  margin: 0;
+}
+
+.lp-feature-card p {
+  font-size: 0.88rem;
+  margin: 0;
+  line-height: 1.6;
+}
+
+.lp-feature-icon {
+  font-size: 1.75rem;
+  line-height: 1;
+  margin-bottom: 0.25rem;
+}
+
+/* How it works steps */
+.lp-steps-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1.5rem;
+}
+
+.lp-step-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0.25rem 0;
+}
+
+.lp-step-num {
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--accent), var(--secondary));
+  color: #fff;
+  font-size: 1rem;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 0.4rem;
+  font-family: var(--font-display), Georgia, serif;
+}
+
+.lp-step-card h3 {
+  font-size: 1rem;
+  font-weight: 700;
+  margin: 0;
+}
+
+.lp-step-card p {
+  font-size: 0.88rem;
+  margin: 0;
+  line-height: 1.6;
+}
+
+/* Testimonials */
+.lp-testimonials-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 1.1rem;
+}
+
+.lp-testimonial-card {
+  padding: 1.5rem;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.lp-testimonial-quote {
+  font-size: 0.95rem;
+  line-height: 1.65;
+  font-style: italic;
+  color: var(--text);
+  margin: 0;
+  flex: 1;
+}
+
+.lp-testimonial-card footer {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.lp-testimonial-card footer strong {
+  font-size: 0.88rem;
+}
+
+.lp-testimonial-card footer span {
+  font-size: 0.78rem;
+}
+
+/* FAQ */
+.lp-faq-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 1.5rem 2rem;
+}
+
+.lp-faq-item h3 {
+  font-size: 0.95rem;
+  font-weight: 700;
+  margin: 0 0 0.4rem;
+}
+
+.lp-faq-item p {
+  font-size: 0.88rem;
+  margin: 0;
+  line-height: 1.6;
+}
+
+/* Footer */
+.lp-footer {
+  background: var(--text);
+  color: rgba(255,255,255,0.9);
+  padding: 2.5rem 0;
+  margin-top: 3rem;
+}
+
+.lp-footer .muted {
+  color: rgba(255,255,255,0.45);
+}
+
+.lp-footer-inner {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  align-items: flex-start;
+}
+
+.lp-footer-brand {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.lp-footer-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1.5rem;
+  font-size: 0.88rem;
+}
+
+.lp-footer-links a {
+  color: rgba(255,255,255,0.7);
+  transition: color 0.15s;
+}
+
+.lp-footer-links a:hover {
+  color: #fff;
+}
+
+.lp-footer-copy {
+  font-size: 0.78rem;
+  margin: 0;
+}
+
+/* ═══════════════════════════════════════════
+   STATIC PAGES (About / Contact)
+═══════════════════════════════════════════ */
+
+.lp-static-shell {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.lp-static-nav {
+  border-bottom: 1px solid var(--border);
+  background: var(--card);
+  position: sticky;
+  top: 0;
+  z-index: 50;
+}
+
+.lp-static-nav-inner {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+  padding: 0.9rem 0;
+}
+
+.lp-static-nav-inner .landing-nav-links {
+  flex: 1;
+}
+
+.lp-static-hero {
+  padding: 4rem 0 2rem;
+  max-width: 760px;
+}
+
+.lp-static-hero h1 {
+  font-size: clamp(1.8rem, 4vw, 2.8rem);
+  font-weight: 800;
+  line-height: 1.15;
+  margin: 0.75rem 0 1rem;
+}
+
+.lp-static-lead {
+  font-size: 1.08rem;
+  line-height: 1.7;
+  color: var(--muted);
+  margin: 0;
+  max-width: 640px;
+}
+
+.lp-static-body {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  padding-bottom: 4rem;
+  flex: 1;
+}
+
+.lp-static-cta {
+  padding-bottom: 4rem;
+}
+
+.lp-cta-card {
+  padding: 2.5rem;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.lp-cta-card h2 {
+  font-size: 1.5rem;
+  margin: 0;
+}
+
+/* About page specifics */
+.lp-about-block {
+  padding: 2rem;
+}
+
+.lp-about-block h2 {
+  font-size: 1.35rem;
+  margin: 0 0 1rem;
+}
+
+.lp-about-block p {
+  font-size: 0.95rem;
+  line-height: 1.7;
+  margin: 0 0 0.75rem;
+  color: var(--muted);
+}
+
+.lp-about-block p:last-child { margin-bottom: 0; }
+
+.lp-about-beliefs {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 1.5rem;
+  margin-top: 0.5rem;
+}
+
+.lp-belief-item h3 {
+  font-size: 0.95rem;
+  font-weight: 700;
+  margin: 0 0 0.35rem;
+}
+
+.lp-belief-item p {
+  font-size: 0.88rem;
+  line-height: 1.6;
+  margin: 0;
+}
+
+/* Contact page specifics */
+.lp-contact-grid {
+  display: grid;
+  grid-template-columns: 1fr 340px;
+  gap: 1.25rem;
+  align-items: start;
+}
+
+@media (max-width: 900px) {
+  .lp-contact-grid { grid-template-columns: 1fr; }
+}
+
+.lp-contact-card {
+  padding: 1.75rem;
+}
+
+.lp-contact-card h2 {
+  font-size: 1.25rem;
+  margin: 0 0 0.5rem;
+}
+
+.lp-contact-card h3 {
+  font-size: 1rem;
+  font-weight: 700;
+  margin: 0 0 1rem;
+}
+
+.lp-contact-main {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.lp-contact-method {
+  display: flex;
+  align-items: flex-start;
+  gap: 1rem;
+  background: var(--soft);
+  border-radius: 16px;
+  padding: 1.1rem 1.25rem;
+}
+
+.lp-contact-method-icon {
+  font-size: 1.5rem;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.lp-contact-email {
+  display: block;
+  color: var(--accent);
+  font-weight: 600;
+  font-size: 0.95rem;
+  margin-top: 0.2rem;
+  word-break: break-all;
+}
+
+.lp-contact-topics {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+}
+
+.lp-contact-topic-item {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  font-size: 0.9rem;
+}
+
+.lp-contact-tick {
+  color: var(--secondary);
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.lp-contact-sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.lp-biz-detail {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  margin-bottom: 0.9rem;
+  font-size: 0.88rem;
+}
+
+.lp-biz-detail:last-child { margin-bottom: 0; }
+
+.lp-biz-detail span { font-size: 0.75rem; }
+
+.lp-quick-links {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  font-size: 0.88rem;
+  font-weight: 500;
+}
+
+.lp-quick-links a {
+  color: var(--accent);
+  transition: opacity 0.15s;
+}
+
+.lp-quick-links a:hover { opacity: 0.75; }
+

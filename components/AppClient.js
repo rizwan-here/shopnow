@@ -10,8 +10,8 @@ import AdUnit from '@/components/AdUnit';
 
 // ── Ad slot IDs — replace these with your real AdSense slot IDs
 // Get them from: Google AdSense → Ads → By ad unit → Display ads
-const AD_SLOT_BETWEEN_PRODUCTS = '5193902330'; // slot shown inside the product grid
-const AD_SLOT_BELOW_PRODUCTS   = '3982938618'; // slot shown below the full product list
+const AD_SLOT_BETWEEN_PRODUCTS = 'REPLACE_WITH_YOUR_SLOT_ID'; // slot shown inside the product grid
+const AD_SLOT_BELOW_PRODUCTS   = 'REPLACE_WITH_YOUR_SLOT_ID'; // slot shown below the full product list
 
 const EMPTY_STORE = { profile: null, categories: [], products: [], links: [], orders: [] };
 const CURRENCY_OPTIONS = ['BDT', 'USD', 'EUR', 'GBP', 'INR', 'AED', 'SAR', 'MYR'];

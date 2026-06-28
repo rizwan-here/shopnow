@@ -18,17 +18,12 @@ export default function AdUnit({ slot, format = 'auto', layout, className = '', 
   const pushed = useRef(false);
 
   useEffect(() => {
-    // Only push once per mount, and only when the slot is provided.
-    // 300ms delay ensures the AdSense script (loaded with afterInteractive)
-    // has had time to initialise before we call push().
+    // Only push once per mount, and only when the slot is provided
     if (!slot || pushed.current) return;
-    const timer = setTimeout(() => {
-      try {
-        pushed.current = true;
-        (window.adsbygoogle = window.adsbygoogle || []).push({});
-      } catch {}
-    }, 300);
-    return () => clearTimeout(timer);
+    try {
+      pushed.current = true;
+      (window.adsbygoogle = window.adsbygoogle || []).push({});
+    } catch {}
   }, [slot]);
 
   // Don't render anything if no slot configured yet
@@ -41,7 +36,7 @@ export default function AdUnit({ slot, format = 'auto', layout, className = '', 
         ref={insRef}
         className="adsbygoogle"
         style={{ display: 'block' }}
-        data-ad-client="ca-pub-4059675757874048"
+        data-ad-client="ca-pub-REPLACE_WITH_YOUR_PUBLISHER_ID"
         data-ad-slot={slot}
         data-ad-format={format}
         {...(layout ? { 'data-ad-layout': layout } : {})}
