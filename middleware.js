@@ -11,7 +11,9 @@ const RESERVED = new Set([
   'robots.txt',
   'uploads',
   'media',
-  'data-deletion'
+  'data-deletion',
+  'about',
+  'contact'
 ]);
 
 export function middleware(request) {

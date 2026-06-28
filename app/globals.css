@@ -3047,14 +3047,15 @@ code {
 
 /* Footer */
 .lp-footer {
-  background: var(--text);
-  color: rgba(255,255,255,0.9);
+  background: #fff;
+  color: var(--text);
+  border-top: 1px solid var(--border);
   padding: 2.5rem 0;
   margin-top: 3rem;
 }
 
 .lp-footer .muted {
-  color: rgba(255,255,255,0.45);
+  color: var(--muted-2);
 }
 
 .lp-footer-inner {
@@ -3078,12 +3079,12 @@ code {
 }
 
 .lp-footer-links a {
-  color: rgba(255,255,255,0.7);
+  color: var(--muted);
   transition: color 0.15s;
 }
 
 .lp-footer-links a:hover {
-  color: #fff;
+  color: var(--text);
 }
 
 .lp-footer-copy {
