@@ -3,7 +3,7 @@ import BrandMark from '@/components/BrandMark';
 
 export const metadata = {
   title: 'Contact Storeatgo — Get help or send us a message',
-  description: 'Have a question about Storeatgo? Contact our support team by email. We're here to help sellers get set up and running.',
+  description: "Have a question about Storeatgo? Contact our support team by email. We're here to help sellers get set up and running.",
 };
 
 export default function ContactPage() {
