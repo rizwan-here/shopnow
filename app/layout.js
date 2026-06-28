@@ -4,6 +4,7 @@ import { startKeepAlive } from '@/lib/keep-alive';
 startKeepAlive();
 import AuthSessionProvider from '@/components/SessionProvider';
 import GlobalFooter from '@/components/GlobalFooter';
+import Script from 'next/script';
 import { Manrope, Playfair_Display } from 'next/font/google';
 
 const sans = Manrope({
@@ -40,18 +41,20 @@ export default function RootLayout({ children }) {
           name="facebook-domain-verification"
           content="d0m2yvyu2yon2dncmzyxbfy3wpn948"
         />
-        {/* Google AdSense — replace ca-pub-XXXX with your real Publisher ID */}
-        <script
-          async
-          src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=pub-4059675757874048"
-          crossOrigin="anonymous"
-        />
       </head>
       <body>
         <AuthSessionProvider>
           {children}
           <GlobalFooter />
         </AuthSessionProvider>
+
+        {/* Google AdSense — loaded after page is interactive so it never blocks render */}
+        <Script
+          async
+          src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-4059675757874048"
+          crossOrigin="anonymous"
+          strategy="afterInteractive"
+        />
       </body>
     </html>
   );
