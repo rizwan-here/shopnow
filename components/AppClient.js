@@ -10,10 +10,31 @@ import AdUnit from '@/components/AdUnit';
 
 // ── Ad slot IDs — replace these with your real AdSense slot IDs
 // Get them from: Google AdSense → Ads → By ad unit → Display ads
-const AD_SLOT_BETWEEN_PRODUCTS = 'REPLACE_WITH_YOUR_SLOT_ID'; // slot shown inside the product grid
-const AD_SLOT_BELOW_PRODUCTS   = 'REPLACE_WITH_YOUR_SLOT_ID'; // slot shown below the full product list
+// Ads are only ever shown on Free-plan storefronts (see PLAN_FEATURES below) —
+// Pro sellers get an ad-free storefront.
+const AD_SLOT_BETWEEN_PRODUCTS = process.env.NEXT_PUBLIC_ADSENSE_SLOT_GRID || 'REPLACE_WITH_YOUR_SLOT_ID'; // slot shown inside the product grid
+const AD_SLOT_BELOW_PRODUCTS   = process.env.NEXT_PUBLIC_ADSENSE_SLOT_BOTTOM || 'REPLACE_WITH_YOUR_SLOT_ID'; // slot shown below the full product list
 
-const EMPTY_STORE = { profile: null, categories: [], products: [], links: [], orders: [] };
+// ── Paddle billing — $7/month Pro plan
+const PADDLE_PRICE_ID_PRO = process.env.NEXT_PUBLIC_PADDLE_PRICE_ID_PRO || '';
+const PADDLE_CLIENT_TOKEN = process.env.NEXT_PUBLIC_PADDLE_CLIENT_TOKEN || '';
+const PADDLE_ENV = process.env.NEXT_PUBLIC_PADDLE_ENV || 'sandbox';
+
+const PLAN_FEATURES = {
+  free: [
+    'Your own branded storefront',
+    'Unlimited products & categories',
+    'COD order management',
+    'Ads shown to your storefront visitors',
+  ],
+  pro: [
+    'Everything in Free',
+    'Ad-free storefront — no ads shown to your buyers',
+    'Priority support',
+  ],
+};
+
+const EMPTY_STORE = { profile: null, categories: [], products: [], links: [], orders: [], subscription: { plan: 'free', isProActive: false } };
 const CURRENCY_OPTIONS = ['BDT', 'USD', 'EUR', 'GBP', 'INR', 'AED', 'SAR', 'MYR'];
 const STOCK_STATUS_OPTIONS = [
   ['in_stock', 'In stock'],
@@ -161,6 +182,8 @@ export default function AppClient({ initialData, initialMode = 'dashboard', stor
   const [lastSeenOrderCount, setLastSeenOrderCount] = useState(0);
   const [showProductTutorial, setShowProductTutorial] = useState(false);
   const [tutorialStep, setTutorialStep] = useState(0);
+  const [paddleReady, setPaddleReady] = useState(false);
+  const [billingBusy, setBillingBusy] = useState(false);
 
   const loggedIn = sessionStatus === 'authenticated';
   const user = session?.user || null;
@@ -256,6 +279,68 @@ export default function AppClient({ initialData, initialMode = 'dashboard', stor
     return data;
   }
 
+  // ── Paddle billing: initialise the SDK once it's loaded on the page
+  useEffect(() => {
+    if (!loggedIn || !PADDLE_CLIENT_TOKEN) return;
+    let cancelled = false;
+    const tryInit = () => {
+      if (cancelled) return;
+      if (window.Paddle) {
+        if (!window.Paddle.__storeatgoInitialised) {
+          window.Paddle.Environment.set(PADDLE_ENV);
+          window.Paddle.Initialize({
+            token: PADDLE_CLIENT_TOKEN,
+            eventCallback: (event) => {
+              if (event?.name === 'checkout.completed') {
+                setToast('Payment received — activating your Pro plan…');
+                // Paddle webhooks land a moment after checkout completes; poll once shortly after.
+                setTimeout(() => { refreshStore(null); }, 3000);
+                setTimeout(() => { refreshStore(null); }, 8000);
+              }
+            },
+          });
+          window.Paddle.__storeatgoInitialised = true;
+        }
+        setPaddleReady(true);
+      } else {
+        setTimeout(tryInit, 400);
+      }
+    };
+    tryInit();
+    return () => { cancelled = true; };
+  }, [loggedIn]);
+
+  function openProCheckout() {
+    if (!window.Paddle || !PADDLE_PRICE_ID_PRO) {
+      setToast('Payments are not configured yet. Please contact support.');
+      return;
+    }
+    window.Paddle.Checkout.open({
+      items: [{ priceId: PADDLE_PRICE_ID_PRO, quantity: 1 }],
+      customer: user?.email ? { email: user.email } : undefined,
+      customData: { ownerId: user?.id || '' },
+    });
+  }
+
+  async function cancelProSubscription() {
+    if (!confirm('Cancel your Pro subscription? You will keep Pro access until the end of the current billing period.')) return;
+    setBillingBusy(true);
+    try {
+      const response = await fetch('/api/paddle/cancel', { method: 'POST' });
+      const data = await response.json();
+      if (!response.ok) {
+        setToast(data?.error || 'Could not cancel subscription.');
+      } else {
+        setToast('Your Pro plan will end at the current billing period.');
+        await refreshStore(null);
+      }
+    } catch {
+      setToast('Could not cancel subscription.');
+    } finally {
+      setBillingBusy(false);
+    }
+  }
+
   async function uploadImage(file, folder = 'general') {
     if (!file) return '';
     const formData = new FormData();
@@ -270,6 +355,8 @@ export default function AppClient({ initialData, initialMode = 'dashboard', stor
   }
 
   const isSellerPreview = loggedIn && initialMode === 'dashboard' && currentView === 'storefront';
+  // Ads only ever show on Free-plan storefronts — Pro is ad-free — and never in the seller's own preview.
+  const showStorefrontAds = !isSellerPreview && !store?.subscription?.isProActive;
 
   const cartCount = useMemo(
     () => cartItems.reduce((sum, item) => sum + item.quantity, 0),
@@ -1108,8 +1195,8 @@ export default function AppClient({ initialData, initialMode = 'dashboard', stor
                 {displayedProducts.slice(0, 8).map((product) => productCard(product, true))}
               </div>
 
-              {/* Mid-feed ad — only shown to real buyers, not seller preview, and only when there are enough products */}
-              {!isSellerPreview && displayedProducts.length > 8 && (
+              {/* Mid-feed ad — only shown to real buyers on Free-plan stores, and only when there are enough products */}
+              {showStorefrontAds && displayedProducts.length > 8 && (
                 <div className="storefront-ad-row">
                   <AdUnit
                     slot={AD_SLOT_BETWEEN_PRODUCTS}
@@ -1126,8 +1213,8 @@ export default function AppClient({ initialData, initialMode = 'dashboard', stor
                 </div>
               )}
 
-              {/* Below-grid ad — shown after all products, not to seller preview */}
-              {!isSellerPreview && (
+              {/* Below-grid ad — shown after all products, Free-plan stores only */}
+              {showStorefrontAds && (
                 <div className="storefront-ad-row storefront-ad-row-bottom">
                   <AdUnit
                     slot={AD_SLOT_BELOW_PRODUCTS}
@@ -1181,6 +1268,7 @@ export default function AppClient({ initialData, initialMode = 'dashboard', stor
         <div className="dashboard-tabs" style={{ marginTop: '1rem' }}>
           {[
             ['products', 'Products & Categories'],
+            ['billing', `Billing${store?.subscription?.isProActive ? ' · Pro' : ''}`],
             ['profileLinks', 'Links & Profile'],
             ['orders', `Orders${newOrderCount > 0 ? ` (${newOrderCount} new)` : ''}`],
             ['analytics', '📊 Analytics'],
@@ -1579,6 +1667,86 @@ export default function AppClient({ initialData, initialMode = 'dashboard', stor
         })()}
 
         {dashboardTab === 'analytics' && renderAnalytics()}
+
+        {dashboardTab === 'billing' && (() => {
+          const sub = store.subscription || { plan: 'free', isProActive: false };
+          const isPro = Boolean(sub.isProActive);
+          const expiryLabel = sub.proExpiresAt
+            ? new Date(sub.proExpiresAt).toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' })
+            : null;
+
+          return (
+            <section style={{ marginTop: '1.5rem' }}>
+              <div className="soft-card section-block">
+                <h2 style={{ marginTop: 0 }}>Your plan</h2>
+                <p className="muted" style={{ marginTop: '0.25rem' }}>
+                  {isPro ? (
+                    <>You're on the <strong>Pro plan</strong> ($7/month).{expiryLabel ? ` ${sub.cancelAtPeriodEnd ? 'Access ends' : 'Renews'} on ${expiryLabel}.` : ''}</>
+                  ) : (
+                    <>You're on the <strong>Free plan</strong>. Upgrade to Pro for an ad-free storefront.</>
+                  )}
+                </p>
+
+                {isPro && sub.cancelAtPeriodEnd && (
+                  <p style={{ color: 'var(--warning, #b45309)', fontSize: '0.9rem' }}>
+                    Your subscription is set to cancel at the end of the current billing period. You'll keep Pro access until then.
+                  </p>
+                )}
+
+                <div className="form-grid two-col-grid" style={{ marginTop: '1.25rem', alignItems: 'stretch' }}>
+                  {/* Free plan card */}
+                  <div className="soft-card" style={{ border: !isPro ? '2px solid var(--accent, #111)' : '1px solid var(--border)' }}>
+                    <h3 style={{ marginTop: 0 }}>Free</h3>
+                    <p className="muted" style={{ margin: '0.25rem 0 1rem' }}><strong style={{ fontSize: '1.4rem' }}>$0</strong> / month</p>
+                    <ul style={{ margin: 0, paddingLeft: '1.1rem', lineHeight: 1.9 }}>
+                      {PLAN_FEATURES.free.map((f) => <li key={f}>{f}</li>)}
+                    </ul>
+                    {!isPro && <p className="muted" style={{ marginTop: '1rem', fontSize: '0.85rem' }}>✓ Current plan</p>}
+                  </div>
+
+                  {/* Pro plan card */}
+                  <div className="soft-card" style={{ border: isPro ? '2px solid var(--accent, #111)' : '1px solid var(--border)' }}>
+                    <h3 style={{ marginTop: 0 }}>Pro</h3>
+                    <p className="muted" style={{ margin: '0.25rem 0 1rem' }}><strong style={{ fontSize: '1.4rem' }}>$7</strong> / month</p>
+                    <ul style={{ margin: 0, paddingLeft: '1.1rem', lineHeight: 1.9 }}>
+                      {PLAN_FEATURES.pro.map((f) => <li key={f}>{f}</li>)}
+                    </ul>
+
+                    {isPro ? (
+                      !sub.cancelAtPeriodEnd ? (
+                        <button
+                          type="button"
+                          className="soft-button-ghost"
+                          style={{ marginTop: '1rem' }}
+                          disabled={billingBusy}
+                          onClick={cancelProSubscription}
+                        >
+                          {billingBusy ? 'Cancelling…' : 'Cancel Pro plan'}
+                        </button>
+                      ) : (
+                        <p className="muted" style={{ marginTop: '1rem', fontSize: '0.85rem' }}>Cancellation scheduled</p>
+                      )
+                    ) : (
+                      <button
+                        type="button"
+                        className="soft-button button-with-icon"
+                        style={{ marginTop: '1rem' }}
+                        disabled={!paddleReady}
+                        onClick={openProCheckout}
+                      >
+                        <ButtonIcon symbol="⭑" />{paddleReady ? 'Upgrade to Pro — $7/mo' : 'Loading checkout…'}
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                <p className="muted" style={{ marginTop: '1.25rem', fontSize: '0.8rem' }}>
+                  Payments are processed securely by Paddle. Prices are billed monthly in USD and can be cancelled anytime — you'll keep Pro access until the end of the paid period.
+                </p>
+              </div>
+            </section>
+          );
+        })()}
 
         {dashboardTab === 'settings' && (
           <form className="soft-card section-block" style={{ marginTop: '1.5rem' }} onSubmit={handleProfileSave}>

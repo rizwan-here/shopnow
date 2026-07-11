@@ -47,8 +47,12 @@ export default function RootLayout({ children }) {
         </AuthSessionProvider>
         <Script
           async
-          src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-4059675757874048"
+          src={`https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=${process.env.NEXT_PUBLIC_ADSENSE_PUBLISHER_ID || 'ca-pub-4059675757874048'}`}
           crossOrigin="anonymous"
+          strategy="afterInteractive"
+        />
+        <Script
+          src="https://cdn.paddle.com/paddle/v2/paddle.js"
           strategy="afterInteractive"
         />
       </body>

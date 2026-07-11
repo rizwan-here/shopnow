@@ -8,8 +8,14 @@ const SubscriptionSchema = new Schema(
     // Manual activation fields (no payment gateway — admin confirms payment)
     proActivatedAt:  { type: Date, default: null },
     proExpiresAt:    { type: Date, default: null },
-    paymentRef:      { type: String, default: '' },   // bKash/Nagad tx id entered by seller
+    paymentRef:      { type: String, default: '' },   // bKash/Nagad tx id entered by seller (legacy manual flow)
     paymentNote:     { type: String, default: '' },
+    // ── Paddle (paddle.com) billing — global card/wallet payments for the $7/mo Pro plan
+    paddleCustomerId:     { type: String, default: '', index: true },
+    paddleSubscriptionId: { type: String, default: '', index: true },
+    paddlePriceId:        { type: String, default: '' },
+    paddleStatus:         { type: String, default: '' }, // active | trialing | past_due | canceled | paused ...
+    cancelAtPeriodEnd:    { type: Boolean, default: false },
     // AdSense config stored per-store
     adsensePublisherId: { type: String, default: '' }, // ca-pub-XXXXXXXXXXXXXXXX
     adsenseBannerSlot:  { type: String, default: '' }, // slot id for below-banner ad
