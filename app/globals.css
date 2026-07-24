@@ -92,9 +92,16 @@ img {
   border-radius: 999px;
   padding: 0.8rem 1.1rem;
   transition: 0.2s ease;
+  white-space: nowrap;
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.75),
     0 10px 24px rgba(62, 44, 31, 0.05);
+}
+
+.choice-chip,
+.variety-tile,
+.tag {
+  white-space: nowrap;
 }
 
 .soft-button {
@@ -1481,6 +1488,14 @@ img {
   justify-content: flex-end;
 }
 
+.nav-cart-button {
+  position: relative;
+}
+
+.cart-count-badge {
+  display: none;
+}
+
 .header-actions {
   flex-wrap: wrap;
   justify-content: flex-end;
@@ -2041,6 +2056,249 @@ img {
 
   .product-detail-modal {
     width: min(100%, calc(100% - 0.5rem));
+  }
+}
+
+/* ---------------------------------------------------------------------
+   Mobile app-style storefront layout (matches the reference screenshot):
+   compact icon-only header, 2-column product grid, underline category
+   tabs, full-screen product sheet, and a full-screen cart screen.
+--------------------------------------------------------------------- */
+@media (max-width: 640px) {
+  /* Header: icon-only nav buttons, no text wrapping, small badge for cart count */
+  .store-nav-actions .btn-label {
+    display: none;
+  }
+
+  .store-nav-actions .button-with-icon {
+    padding: 0.7rem;
+    border-radius: 50%;
+    gap: 0;
+  }
+
+  .store-nav-actions .button-icon {
+    width: 1.15rem;
+    height: 1.15rem;
+    font-size: 0.85rem;
+  }
+
+  .cart-count-badge {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: absolute;
+    top: -2px;
+    right: -2px;
+    min-width: 16px;
+    height: 16px;
+    padding: 0 3px;
+    border-radius: 999px;
+    background: var(--accent-dark, var(--accent));
+    color: #ffffff;
+    font-size: 0.62rem;
+    font-weight: 700;
+    line-height: 1;
+    box-shadow: 0 0 0 2px #ffffff;
+  }
+
+  /* Category tabs become underline tabs, scroll horizontally in one row */
+  .storefront-category-tabs {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    gap: 1.15rem;
+    padding-bottom: 0.35rem;
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  .storefront-category-tabs::-webkit-scrollbar {
+    display: none;
+  }
+
+  .storefront-category-tabs .badge-button {
+    flex: 0 0 auto;
+    background: transparent;
+    border: none;
+    box-shadow: none;
+    padding: 0.3rem 0.1rem 0.55rem;
+    border-radius: 0;
+    border-bottom: 2px solid transparent;
+    color: var(--muted);
+    font-weight: 600;
+  }
+
+  .storefront-category-tabs .badge-button.active {
+    background: transparent;
+    color: var(--text);
+    border-bottom-color: var(--accent);
+  }
+
+  /* Product grid: fixed 2 columns, compact cards */
+  .storefront-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.7rem;
+  }
+
+  .storefront-grid .product-card {
+    border-radius: 18px;
+  }
+
+  .storefront-grid .product-card img,
+  .storefront-grid .product-card .image-placeholder {
+    aspect-ratio: 1 / 1;
+  }
+
+  .storefront-grid .card-body {
+    padding: 0.6rem 0.35rem 0.85rem;
+  }
+
+  .storefront-grid .card-body h3 {
+    font-size: 0.86rem;
+    line-height: 1.25;
+  }
+
+  .storefront-grid .card-body p.muted {
+    display: none;
+  }
+
+  .storefront-grid .card-body strong {
+    font-size: 0.85rem;
+  }
+
+  /* Product detail becomes a full-screen sheet: image on top, sheet content below */
+  .product-detail-modal {
+    width: 100%;
+    height: 100%;
+    max-height: 100%;
+    margin: 0;
+  }
+
+  .product-detail-modal .modal-card {
+    height: 100vh;
+    max-height: 100vh;
+    width: 100%;
+    border-radius: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  .product-detail-modal .drawer-header {
+    position: absolute;
+    top: 0.9rem;
+    left: 0.9rem;
+    right: 0.9rem;
+    z-index: 2;
+    justify-content: flex-start;
+  }
+
+  .product-detail-modal .drawer-header h2 {
+    display: none;
+  }
+
+  .product-detail-modal .drawer-header button {
+    width: 2.4rem;
+    height: 2.4rem;
+    padding: 0;
+    border-radius: 50%;
+    border: none;
+    background: rgba(255, 255, 255, 0.9);
+    box-shadow: 0 2px 10px rgba(62, 44, 31, 0.18);
+    color: transparent;
+    font-size: 0;
+    position: relative;
+  }
+
+  .product-detail-modal .drawer-header button::after {
+    content: "\2715";
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text);
+    font-size: 0.95rem;
+  }
+
+  .product-detail-modal .product-detail-grid {
+    grid-template-columns: 1fr;
+    margin-top: 0;
+    gap: 0;
+    flex: 1;
+    overflow-y: auto;
+  }
+
+  .product-detail-modal .product-detail-image,
+  .product-detail-modal .image-placeholder {
+    border-radius: 0;
+    aspect-ratio: 4 / 5;
+  }
+
+  .product-detail-modal .variety-gallery {
+    padding: 0 1.1rem;
+  }
+
+  .product-detail-modal .product-detail-info {
+    background: #ffffff;
+    border-radius: 1.5rem 1.5rem 0 0;
+    margin-top: -1.25rem;
+    position: relative;
+    padding: 1.35rem 1.1rem 1.25rem;
+  }
+
+  .product-detail-modal .product-detail-info > button.soft-button:last-child {
+    position: sticky;
+    bottom: -1px;
+    margin-top: 0.4rem;
+  }
+
+  /* Cart becomes a full-screen page with a centered title, matching "Your Cart" */
+  .drawer {
+    width: 100%;
+    padding: 1.25rem 1.1rem 1.5rem;
+  }
+
+  .drawer-header {
+    position: relative;
+    justify-content: center;
+  }
+
+  .drawer-header h2 {
+    font-size: 1.05rem;
+  }
+
+  .drawer-header button {
+    position: absolute;
+    left: 0;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 2.2rem;
+    height: 2.2rem;
+    padding: 0;
+    border-radius: 50%;
+    color: transparent;
+    font-size: 0;
+  }
+
+  .drawer-header button::after {
+    content: "\2715";
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text);
+    font-size: 0.9rem;
+    width: 100%;
+    height: 100%;
+  }
+
+  .cart-checkout-actions {
+    position: sticky;
+    bottom: -1px;
+    background: #ffffff;
+    padding-top: 0.75rem;
+    margin-top: 1rem !important;
+    border-top: 1px solid var(--border);
   }
 }
 

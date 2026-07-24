@@ -1139,16 +1139,17 @@ export default function AppClient({ initialData, initialMode = 'dashboard', stor
             <div className="inline-row">
               {loggedIn && (
                 <button className="soft-button-ghost button-with-icon" onClick={() => setCurrentView('dashboard')}>
-                  <ButtonIcon symbol="◫" />Dashboard
+                  <ButtonIcon symbol="◫" /><span className="btn-label">Dashboard</span>
                 </button>
               )}
               {!isSellerPreview && (
                 <>
                   <button className="soft-button-ghost button-with-icon" onClick={() => { setShowTrackOrder(true); resetTrackModal(); }}>
-                    <ButtonIcon symbol="↻" />Track order
+                    <ButtonIcon symbol="↻" /><span className="btn-label">Track order</span>
                   </button>
-                  <button className="soft-button-ghost button-with-icon" onClick={() => setShowCart(true)}>
-                    <ButtonIcon symbol="🛒" />Cart ({cartCount})
+                  <button className="soft-button-ghost button-with-icon nav-cart-button" onClick={() => setShowCart(true)}>
+                    <ButtonIcon symbol="🛒" /><span className="btn-label">Cart ({cartCount})</span>
+                    {cartCount > 0 && <span className="cart-count-badge">{cartCount}</span>}
                   </button>
                 </>
               )}
@@ -1166,7 +1167,7 @@ export default function AppClient({ initialData, initialMode = 'dashboard', stor
             />
           </div>
           <div className="section-head dashboard-toolbar" style={{ marginBottom: '1rem' }}>
-            <div className="tag-row">
+            <div className="tag-row storefront-category-tabs">
               <button
                 className={`badge-button ${storefrontSelectedCategory === null ? 'active' : ''}`}
                 onClick={() => setStorefrontSelectedCategory(null)}
@@ -2654,9 +2655,9 @@ export default function AppClient({ initialData, initialMode = 'dashboard', stor
               })())}</strong>
             </div>
             <div className="note-box" style={{ marginTop: '0.75rem', fontSize: '0.83rem' }}>Cash on delivery only.</div>
-            <div style={{ marginTop: '1rem' }}>
+            <div className="cart-checkout-actions" style={{ marginTop: '1rem' }}>
               <button className="soft-button button-with-icon" onClick={() => { setShowCart(false); setShowCheckout(true); }}>
-                <ButtonIcon symbol="→" />Checkout
+                <ButtonIcon symbol="→" /><span className="btn-label-static">Checkout</span>
               </button>
             </div>
           </div>
