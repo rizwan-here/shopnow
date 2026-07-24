@@ -999,45 +999,38 @@ img {
   gap: 0.75rem;
 }
 
-.contact-fab {
+.contact-fab-icon {
   display: inline-flex;
   align-items: center;
-  gap: 0.7rem;
-  padding: 0.82rem 1rem;
-  border-radius: 999px;
+  justify-content: center;
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  overflow: hidden;
+  background: #ffffff;
+  box-shadow: 0 10px 24px rgba(62, 44, 31, 0.2);
   border: 1px solid var(--border-strong);
-  background: linear-gradient(180deg, rgba(255,255,255,0.97) 0%, rgba(249,244,239,0.94) 100%);
-  box-shadow: inset 0 1px 0 rgba(255,255,255,0.8), 0 18px 34px rgba(62,44,31,0.12);
-  font-weight: 700;
 }
 
-.contact-fab.whatsapp .contact-fab-icon {
-  background: #25d366;
+.contact-fab-icon img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 
-.contact-fab.messenger .contact-fab-icon {
-  background: #0084ff;
-}
-
-.contact-fab-icon {
-  display: inline-grid;
-  place-items: center;
-  width: 30px;
-  height: 30px;
-  border-radius: 999px;
-  color: white;
-  font-size: 0.9rem;
-  font-weight: 800;
+.pngtree-attribution {
+  visibility: hidden;
+  position: absolute;
+  width: 0;
+  height: 0;
+  overflow: hidden;
+  pointer-events: none;
 }
 
 @media (max-width: 700px) {
-  .contact-dock {
-    left: 1rem;
-    right: 1rem;
-  }
-
-  .contact-fab {
-    justify-content: center;
+  .contact-fab-icon {
+    width: 46px;
+    height: 46px;
   }
 }
 
@@ -2163,6 +2156,65 @@ img {
 
   .storefront-grid .card-body strong {
     font-size: 0.85rem;
+  }
+
+  /* Dashboard: same 2-column grid + underline category tabs as the storefront */
+  .category-filter-row {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    gap: 1.15rem;
+    padding-bottom: 0.35rem;
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  .category-filter-row::-webkit-scrollbar {
+    display: none;
+  }
+
+  .category-filter-row .badge-button {
+    flex: 0 0 auto;
+    background: transparent;
+    border: none;
+    box-shadow: none;
+    padding: 0.3rem 0.1rem 0.55rem;
+    border-radius: 0;
+    border-bottom: 2px solid transparent;
+    color: var(--muted);
+    font-weight: 600;
+  }
+
+  .category-filter-row .badge-button.active {
+    background: transparent;
+    color: var(--text);
+    border-bottom-color: var(--accent);
+  }
+
+  .dashboard-product-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.7rem;
+  }
+
+  .dashboard-product-grid .product-card {
+    border-radius: 18px;
+  }
+
+  .dashboard-product-grid .product-card img,
+  .dashboard-product-grid .product-card .image-placeholder {
+    aspect-ratio: 1 / 1;
+  }
+
+  .dashboard-product-grid .card-body {
+    padding: 0.6rem 0.35rem 0.85rem;
+  }
+
+  .dashboard-product-grid .card-body h3 {
+    font-size: 0.86rem;
+    line-height: 1.25;
+  }
+
+  .dashboard-product-grid .card-body > p.muted {
+    display: none;
   }
 
   /* Product detail becomes a full-screen sheet: image on top, sheet content below */

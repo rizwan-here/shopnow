@@ -1696,7 +1696,7 @@ export default function AppClient({ initialData, initialMode = 'dashboard', stor
 
                 <div className="form-grid two-col-grid" style={{ marginTop: '1.25rem', alignItems: 'stretch' }}>
                   {/* Free plan card */}
-                  <div className="soft-card" style={{ border: !isPro ? '2px solid var(--accent, #111)' : '1px solid var(--border)' }}>
+                  <div className="soft-card section-block" style={{ border: !isPro ? '2px solid var(--accent, #111)' : '1px solid var(--border)' }}>
                     <h3 style={{ marginTop: 0 }}>Free</h3>
                     <p className="muted" style={{ margin: '0.25rem 0 1rem' }}><strong style={{ fontSize: '1.4rem' }}>$0</strong> / month</p>
                     <ul style={{ margin: 0, paddingLeft: '1.1rem', lineHeight: 1.9 }}>
@@ -1706,7 +1706,7 @@ export default function AppClient({ initialData, initialMode = 'dashboard', stor
                   </div>
 
                   {/* Pro plan card */}
-                  <div className="soft-card" style={{ border: isPro ? '2px solid var(--accent, #111)' : '1px solid var(--border)' }}>
+                  <div className="soft-card section-block" style={{ border: isPro ? '2px solid var(--accent, #111)' : '1px solid var(--border)' }}>
                     <h3 style={{ marginTop: 0 }}>Pro</h3>
                     <p className="muted" style={{ margin: '0.25rem 0 1rem' }}><strong style={{ fontSize: '1.4rem' }}>$7</strong> / month</p>
                     <ul style={{ margin: 0, paddingLeft: '1.1rem', lineHeight: 1.9 }}>
@@ -3550,17 +3550,19 @@ function StoreContactDock({ profile }) {
   return (
     <div className="contact-dock">
       {messengerHref && (
-        <a className="contact-fab messenger" href={messengerHref} target="_blank" rel="noreferrer">
-          <span className="contact-fab-icon">M</span>
-          <span>Message seller</span>
+        <a className="contact-fab-icon messenger" href={messengerHref} target="_blank" rel="noreferrer" aria-label="Message seller on Messenger">
+          <img src="/messenger-icon.png" alt="Messenger" />
         </a>
       )}
       {whatsappHref && (
-        <a className="contact-fab whatsapp" href={whatsappHref} target="_blank" rel="noreferrer">
-          <span className="contact-fab-icon">W</span>
-          <span>WhatsApp seller</span>
+        <a className="contact-fab-icon whatsapp" href={whatsappHref} target="_blank" rel="noreferrer" aria-label="Message seller on WhatsApp">
+          <img src="/whatsapp-icon.png" alt="WhatsApp" />
         </a>
       )}
+      <div className="pngtree-attribution">
+        <a href="https://pngtree.com/freepng/messenger-logo-icon_3571405.html">png image from pngtree.com/</a>
+        <a href="https://pngtree.com/freepng/whatsapp-icon_9015283.html">png image from pngtree.com/</a>
+      </div>
     </div>
   );
 }
