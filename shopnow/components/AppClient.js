@@ -1018,7 +1018,7 @@ export default function AppClient({ initialData, initialMode = 'dashboard', stor
           <div className="responsive-stack header-actions">
             <div className="store-link-compact">
               <span className="mini-link-label">Shop link</span>
-              <span className="mini-link-text">{`storeatgo.xyz/${store.profile.slug}`}</span>
+              <span className="mini-link-text">{`storeatgo.com/${store.profile.slug}`}</span>
             </div>
             <button className="soft-button-ghost button-with-icon" onClick={() => navigator.clipboard.writeText(`${window.location.origin}/${store.profile.slug}`)}>
               <ButtonIcon symbol="⧉" />Copy link
@@ -1586,7 +1586,7 @@ export default function AppClient({ initialData, initialMode = 'dashboard', stor
                 <div className="showcase-hero">
                   <img src="https://images.unsplash.com/photo-1529139574466-a303027c1d8b?auto=format&fit=crop&w=1200&q=80" alt="Storefront preview" />
                   <div className="showcase-overlay">
-                    <strong>storeatgo.xyz/yourname</strong>
+                    <strong>storeatgo.com/yourname</strong>
                     <p>Your products, your brand, your link — built to turn profile traffic into real orders.</p>
                   </div>
                 </div>
@@ -1739,7 +1739,7 @@ export default function AppClient({ initialData, initialMode = 'dashboard', stor
         <div className="soft-card auth-card">
           <div className="auth-brand-wrap"><BrandMark size="auth" /></div>
           <h1 style={{ marginBottom: '0.5rem' }}>Choose your Storeatgo username</h1>
-          <p className="muted">Your store starts completely blank. Pick a unique username for your public link like <strong>storeatgo.xyz/username</strong>.</p>
+          <p className="muted">Your store starts completely blank. Pick a unique username for your public link like <strong>storeatgo.com/username</strong>.</p>
           <form onSubmit={handleRegisterStore} style={{ marginTop: '1rem' }}>
             <label className="field">
               <span>Username</span>

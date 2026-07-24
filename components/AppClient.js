@@ -135,6 +135,7 @@ export default function AppClient({ initialData, initialMode = 'dashboard', stor
   const [dashboardTab, setDashboardTab] = useState('products');
   const [searchProductQuery, setSearchProductQuery] = useState('');
   const [selectedCategoryFilter, setSelectedCategoryFilter] = useState('all');
+  const [dashboardCategoryMenuOpen, setDashboardCategoryMenuOpen] = useState(false);
   const [storefrontSelectedCategory, setStorefrontSelectedCategory] = useState(null);
   const [storefrontSearchQuery, setStorefrontSearchQuery] = useState('');
   const [cartItems, setCartItems] = useState([]);
@@ -1255,7 +1256,7 @@ export default function AppClient({ initialData, initialMode = 'dashboard', stor
           <div className="responsive-stack header-actions">
             <div className="store-link-compact">
               <span className="mini-link-label">Shop link</span>
-              <span className="mini-link-text">{`storeatgo.xyz/${store.profile.slug}`}</span>
+              <span className="mini-link-text">{`storeatgo.com/${store.profile.slug}`}</span>
             </div>
             <button className="soft-button-ghost button-with-icon" onClick={() => navigator.clipboard.writeText(`${window.location.origin}/${store.profile.slug}`)}>
               <ButtonIcon symbol="⧉" />Copy link
@@ -1306,22 +1307,39 @@ export default function AppClient({ initialData, initialMode = 'dashboard', stor
               </div>
             </div>
 
-            <div className="tag-row category-filter-row" style={{ marginBottom: '1rem' }}>
+            <div className="category-dropdown">
               <button
-                className={`badge-button ${selectedCategoryFilter === 'all' ? 'active' : ''}`}
-                onClick={() => setSelectedCategoryFilter('all')}
+                type="button"
+                className="soft-button-ghost button-with-icon category-dropdown-toggle"
+                onClick={() => setDashboardCategoryMenuOpen((current) => !current)}
               >
-                All products
+                <ButtonIcon symbol="☰" />
+                {selectedCategoryFilter === 'all' ? 'Categories' : (store.categories.find((category) => category._id === selectedCategoryFilter)?.name || 'Categories')}
               </button>
-              {store.categories.map((category) => (
-                <button
-                  className={`badge-button ${selectedCategoryFilter === category._id ? 'active' : ''}`}
-                  key={category._id}
-                  onClick={() => setSelectedCategoryFilter(category._id)}
-                >
-                  {category.name}
-                </button>
-              ))}
+              {dashboardCategoryMenuOpen && (
+                <>
+                  <div className="category-dropdown-backdrop" onClick={() => setDashboardCategoryMenuOpen(false)} />
+                  <div className="category-dropdown-menu">
+                    <button
+                      type="button"
+                      className={`category-dropdown-item ${selectedCategoryFilter === 'all' ? 'active' : ''}`}
+                      onClick={() => { setSelectedCategoryFilter('all'); setDashboardCategoryMenuOpen(false); }}
+                    >
+                      All products
+                    </button>
+                    {store.categories.map((category) => (
+                      <button
+                        type="button"
+                        className={`category-dropdown-item ${selectedCategoryFilter === category._id ? 'active' : ''}`}
+                        key={category._id}
+                        onClick={() => { setSelectedCategoryFilter(category._id); setDashboardCategoryMenuOpen(false); }}
+                      >
+                        {category.name}
+                      </button>
+                    ))}
+                  </div>
+                </>
+              )}
             </div>
 
             {isNewStore ? (
@@ -1808,7 +1826,7 @@ export default function AppClient({ initialData, initialMode = 'dashboard', stor
                 {!editingUsername ? (
                   <div className="inline-row" style={{ gap: '0.6rem', alignItems: 'center' }}>
                     <span className="mini-link-text" style={{ fontFamily: 'monospace', background: 'var(--surface-2,#f4f4f4)', padding: '0.45rem 0.75rem', borderRadius: '0.5rem', fontSize: '0.9rem' }}>
-                      storeatgo.xyz/<strong>{store.profile?.slug}</strong>
+                      storeatgo.com/<strong>{store.profile?.slug}</strong>
                     </span>
                     <button
                       type="button"
@@ -1825,7 +1843,7 @@ export default function AppClient({ initialData, initialMode = 'dashboard', stor
                 ) : (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
                     <div className="inline-row" style={{ gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
-                      <span className="muted" style={{ fontSize: '0.9rem', whiteSpace: 'nowrap' }}>storeatgo.xyz/</span>
+                      <span className="muted" style={{ fontSize: '0.9rem', whiteSpace: 'nowrap' }}>storeatgo.com/</span>
                       <input
                         value={newUsername}
                         onChange={(event) => setNewUsername(event.target.value)}
@@ -2405,7 +2423,7 @@ export default function AppClient({ initialData, initialMode = 'dashboard', stor
                 <div className="showcase-hero">
                   <img src="https://images.unsplash.com/photo-1529139574466-a303027c1d8b?auto=format&fit=crop&w=1200&q=80" alt="Storefront preview" />
                   <div className="showcase-overlay">
-                    <strong>storeatgo.xyz/yourname</strong>
+                    <strong>storeatgo.com/yourname</strong>
                     <p>Your products, your brand, your link — built to turn profile traffic into real orders.</p>
                   </div>
                 </div>
@@ -2534,7 +2552,7 @@ export default function AppClient({ initialData, initialMode = 'dashboard', stor
         <div className="soft-card auth-card">
           <div className="auth-brand-wrap"><BrandMark size="auth" /></div>
           <h1 style={{ marginBottom: '0.5rem' }}>Choose your Storeatgo username</h1>
-          <p className="muted">Your store starts completely blank. Pick a unique username for your public link like <strong>storeatgo.xyz/username</strong>.</p>
+          <p className="muted">Your store starts completely blank. Pick a unique username for your public link like <strong>storeatgo.com/username</strong>.</p>
           <form onSubmit={handleRegisterStore} style={{ marginTop: '1rem' }}>
             <label className="field">
               <span>Username</span>
@@ -3551,12 +3569,12 @@ function StoreContactDock({ profile }) {
     <div className="contact-dock">
       {messengerHref && (
         <a className="contact-fab-icon messenger" href={messengerHref} target="_blank" rel="noreferrer" aria-label="Message seller on Messenger">
-          <img src="/messenger-icon.png" alt="Messenger" />
+          <img src="/messenger-icon.png" alt="Messenger" width={52} height={52} />
         </a>
       )}
       {whatsappHref && (
         <a className="contact-fab-icon whatsapp" href={whatsappHref} target="_blank" rel="noreferrer" aria-label="Message seller on WhatsApp">
-          <img src="/whatsapp-icon.png" alt="WhatsApp" />
+          <img src="/whatsapp-icon.png" alt="WhatsApp" width={52} height={52} />
         </a>
       )}
       <div className="pngtree-attribution">

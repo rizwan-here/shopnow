@@ -19,7 +19,7 @@ export default function TermsAndConditionsPage() {
         <p>Seller access may require login through a supported provider such as Google or Facebook. Sellers are responsible for maintaining control of their login account, keeping store information accurate, and all activity that occurs through their account.</p>
 
         <h2>4. Usernames and storefront links</h2>
-        <p>When creating a store, sellers may choose a username or slug for a public storefront link such as <strong>storeatgo.xyz/yourname</strong>. Usernames must not be unlawful, abusive, misleading, infringing, or deceptive. Storeatgo reserves the right to reject or reclaim usernames where reasonably necessary.</p>
+        <p>When creating a store, sellers may choose a username or slug for a public storefront link such as <strong>storeatgo.com/yourname</strong>. Usernames must not be unlawful, abusive, misleading, infringing, or deceptive. Storeatgo reserves the right to reject or reclaim usernames where reasonably necessary.</p>
 
         <h2>5. Seller responsibilities</h2>
         <p>Sellers are solely responsible for the products, pricing, images, descriptions, sizes, delivery commitments, return or exchange statements, promotions, and contact details shown in their store. Sellers are also responsible for the lawful fulfillment of orders and customer communication.</p>

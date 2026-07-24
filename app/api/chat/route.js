@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getStorePayload } from '@/lib/store-service';
+import { getStorePayloadBySlug } from '@/lib/store-service';
 import { buildChatSystemPrompt, detectLanguageMode, fallbackSupportReply } from '@/lib/chatbot';
 
 export async function POST(request) {
@@ -14,7 +14,7 @@ export async function POST(request) {
       return NextResponse.json({ error: 'Message is required.' }, { status: 400 });
     }
 
-    const storeData = await getStorePayload(storeSlug);
+    const storeData = await getStorePayloadBySlug(storeSlug);
     const languageMode = detectLanguageMode(userMessage);
     const openRouterKey = process.env.OPENROUTER_API_KEY;
 
@@ -72,7 +72,7 @@ export async function POST(request) {
   } catch (error) {
     try {
       if (body.userMessage) {
-        const storeData = await getStorePayload(body.storeSlug || undefined);
+        const storeData = await getStorePayloadBySlug(body.storeSlug || undefined);
         const reply = fallbackSupportReply({ userMessage: body.userMessage, storeData, history: body.messages || [] });
         return NextResponse.json({ reply, mode: 'fallback' });
       }

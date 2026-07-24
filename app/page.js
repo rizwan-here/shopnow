@@ -1,6 +1,8 @@
 import Link from 'next/link';
 import BrandMark from '@/components/BrandMark';
 import LandingClient from '@/components/LandingClient';
+import ScrollRevealGroup from '@/components/ScrollRevealGroup';
+import AutoScrollCarousel from '@/components/AutoScrollCarousel';
 
 export const metadata = {
   title: 'Storeatgo — Social-first storefronts for sellers in Bangladesh',
@@ -11,7 +13,7 @@ const FEATURES = [
   {
     icon: '🛍️',
     title: 'Your own branded storefront',
-    body: 'Get a clean, mobile-first shop at storeatgo.xyz/yourname. Add your logo, banner, product photos, and bio — looks premium from the first click.'
+    body: 'Get a clean, mobile-first shop at storeatgo.com/yourname. Add your logo, banner, product photos, and bio — looks premium from the first click.'
   },
   {
     icon: '📦',
@@ -43,7 +45,7 @@ const FEATURES = [
 const HOW_IT_WORKS = [
   { step: '1', title: 'Sign up with Google', body: 'Create your account in seconds. No credit card, no complicated forms.' },
   { step: '2', title: 'Set up your store', body: 'Add your logo, banner, products, and prices. Your storefront goes live immediately.' },
-  { step: '3', title: 'Share your link', body: 'Drop your storeatgo.xyz/yourname link in your bio, stories, and everywhere you sell.' },
+  { step: '3', title: 'Share your link', body: 'Drop your storeatgo.com/yourname link in your bio, stories, and everywhere you sell.' },
   { step: '4', title: 'Get orders & grow', body: 'Buyers order directly. You manage everything from your dashboard and close sales over WhatsApp.' },
 ];
 
@@ -120,7 +122,7 @@ export default function HomePage() {
                     height={340}
                   />
                   <div className="showcase-overlay">
-                    <strong>storeatgo.xyz/yourname</strong>
+                    <strong>storeatgo.com/yourname</strong>
                     <p>Your products, your brand, your link — built to turn profile traffic into real orders.</p>
                   </div>
                 </div>
@@ -135,25 +137,29 @@ export default function HomePage() {
         </header>
 
         {/* FEATURES */}
-        <section className="container lp-section" id="features">
+        <section className="container lp-section lp-section-tight-bottom" id="features">
           <div className="lp-section-label">What you get</div>
           <h2 className="lp-section-title">Everything a social seller needs — nothing they don't</h2>
-          <div className="lp-features-grid">
-            {FEATURES.map(({ icon, title, body }) => (
-              <article className="soft-card lp-feature-card" key={title}>
+        </section>
+        <div className="lp-section lp-section-carousel">
+          <AutoScrollCarousel
+            items={FEATURES}
+            speedSeconds={34}
+            renderItem={({ icon, title, body }, key) => (
+              <article className="soft-card lp-feature-card" key={key}>
                 <div className="lp-feature-icon">{icon}</div>
                 <h3>{title}</h3>
                 <p className="muted">{body}</p>
               </article>
-            ))}
-          </div>
-        </section>
+            )}
+          />
+        </div>
 
         {/* HOW IT WORKS */}
         <section className="container lp-section" id="how-it-works">
           <div className="lp-section-label">How it works</div>
           <h2 className="lp-section-title">Your store is live in under 5 minutes</h2>
-          <div className="lp-steps-grid">
+          <ScrollRevealGroup className="lp-steps-grid">
             {HOW_IT_WORKS.map(({ step, title, body }) => (
               <div className="lp-step-card" key={step}>
                 <div className="lp-step-num">{step}</div>
@@ -161,55 +167,29 @@ export default function HomePage() {
                 <p className="muted">{body}</p>
               </div>
             ))}
-          </div>
-        </section>
-
-        {/* STORY / VISUAL SPLIT */}
-        <section className="container lp-section story-grid">
-          <div className="soft-card story-card">
-            <img
-              src="https://images.unsplash.com/photo-1556740749-887f6717d7e4?auto=format&fit=crop&w=1200&q=80"
-              alt="Seller managing their online store on a laptop"
-              width={600}
-              height={380}
-            />
-            <div>
-              <h2>Make your first impression feel like a real brand, not just another social profile.</h2>
-              <p className="muted">Use one elegant shop link across your bio, stories, campaigns, and customer chats. Showcase your products, your identity, and your best offers in one polished destination that works on every device.</p>
-              <a className="soft-button" href="#signup-options" style={{ marginTop: '1rem', display: 'inline-block' }}>Start for free</a>
-            </div>
-          </div>
-          <div className="soft-card story-card">
-            <img
-              src="https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&w=1200&q=80"
-              alt="Buyer browsing products on a phone and messaging seller on WhatsApp"
-              width={600}
-              height={380}
-            />
-            <div>
-              <h2>Turn interested shoppers into conversations you can actually close.</h2>
-              <p className="muted">Buyers already trust WhatsApp and Messenger. Storeatgo sends them there at the right moment — so they can ask, confirm, and order without any friction or back-and-forth confusion.</p>
-              <a className="soft-button-ghost" href="#how-it-works" style={{ marginTop: '1rem', display: 'inline-block' }}>See how it works</a>
-            </div>
-          </div>
+          </ScrollRevealGroup>
         </section>
 
         {/* TESTIMONIALS */}
-        <section className="container lp-section" id="testimonials">
+        <section className="container lp-section lp-section-tight-bottom" id="testimonials">
           <div className="lp-section-label">Seller stories</div>
           <h2 className="lp-section-title">Sellers across Bangladesh are already using Storeatgo</h2>
-          <div className="lp-testimonials-grid">
-            {TESTIMONIALS.map(({ name, role, quote }) => (
-              <blockquote className="soft-card lp-testimonial-card" key={name}>
+        </section>
+        <div className="lp-section lp-section-carousel">
+          <AutoScrollCarousel
+            items={TESTIMONIALS}
+            speedSeconds={38}
+            renderItem={({ name, role, quote }, key) => (
+              <blockquote className="soft-card lp-testimonial-card" key={key}>
                 <p className="lp-testimonial-quote">"{quote}"</p>
                 <footer>
                   <strong>{name}</strong>
                   <span className="muted">{role}</span>
                 </footer>
               </blockquote>
-            ))}
-          </div>
-        </section>
+            )}
+          />
+        </div>
 
         {/* FAQ */}
         <section className="container lp-section" id="faq">
@@ -221,7 +201,7 @@ export default function HomePage() {
               ['What payment methods are supported?', 'Storeatgo is built for Cash on Delivery (COD) — the most trusted payment method for online buyers in Bangladesh.'],
               ['Do I need a website or technical skills?', 'Not at all. Sign up with Google, pick a username, and your store is live. No coding, no hosting setup required.'],
               ['Can buyers order directly from my store?', 'Yes. Buyers can browse your products and place COD orders directly on your storefront. You manage everything from your dashboard.'],
-              ['How do I share my store?', 'You get a link like storeatgo.xyz/yourname. Share it in your Instagram bio, Facebook page, WhatsApp status, or anywhere else you promote your business.'],
+              ['How do I share my store?', 'You get a link like storeatgo.com/yourname. Share it in your Instagram bio, Facebook page, WhatsApp status, or anywhere else you promote your business.'],
               ['Where can I get help?', 'Email us at storeatgoofficial.contact@gmail.com or visit our contact page. We\'re happy to help.'],
             ].map(([q, a]) => (
               <div className="lp-faq-item" key={q}>
