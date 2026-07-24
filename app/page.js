@@ -144,7 +144,6 @@ export default function HomePage() {
         <div className="lp-section lp-section-carousel">
           <AutoScrollCarousel
             items={FEATURES}
-            speedSeconds={34}
             renderItem={({ icon, title, body }, key) => (
               <article className="soft-card lp-feature-card" key={key}>
                 <div className="lp-feature-icon">{icon}</div>
@@ -178,7 +177,6 @@ export default function HomePage() {
         <div className="lp-section lp-section-carousel">
           <AutoScrollCarousel
             items={TESTIMONIALS}
-            speedSeconds={38}
             renderItem={({ name, role, quote }, key) => (
               <blockquote className="soft-card lp-testimonial-card" key={key}>
                 <p className="lp-testimonial-quote">"{quote}"</p>

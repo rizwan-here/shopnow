@@ -1273,7 +1273,7 @@ export default function AppClient({ initialData, initialMode = 'dashboard', stor
             ['billing', `Billing${store?.subscription?.isProActive ? ' · Pro' : ''}`],
             ['profileLinks', 'Links & Profile'],
             ['orders', `Orders${newOrderCount > 0 ? ` (${newOrderCount} new)` : ''}`],
-            ['analytics', '📊 Analytics'],
+            ['analytics', 'Analytics'],
             ['settings', 'Store Settings']
           ].map(([key, label]) => (
             <button

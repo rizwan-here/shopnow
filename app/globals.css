@@ -314,12 +314,16 @@ img {
   cursor: pointer;
   border-bottom: 2px solid transparent;
   white-space: nowrap;
+  font-family: var(--font-sans), Arial, Helvetica, sans-serif;
+  font-size: 0.95rem;
+  font-weight: 500;
+  letter-spacing: 0.01em;
 }
 
 .dashboard-tab.active {
   color: var(--text);
   border-bottom-color: var(--accent);
-  font-weight: bold;
+  font-weight: 700;
 }
 
 .category-dropdown {
@@ -729,6 +733,12 @@ img {
     justify-content: flex-end;
   }
 
+  .dashboard-search-input {
+    max-width: 420px;
+    padding: 0.85rem 1.35rem;
+    font-size: 0.98rem;
+  }
+
   .dashboard-product-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -802,8 +812,12 @@ img {
   }
 
   .dashboard-search {
-    flex: 0 1 360px;
-    min-width: 260px;
+    flex: 0 1 400px;
+    min-width: 280px;
+  }
+
+  .dashboard-search-input {
+    max-width: 460px;
   }
 
   .dashboard-product-grid {
@@ -3431,12 +3445,7 @@ code {
   gap: 1.1rem;
   padding: 0 1.1rem;
   animation-name: lp-marquee-scroll;
-  animation-timing-function: linear;
   animation-iteration-count: infinite;
-}
-
-.lp-marquee:hover .lp-marquee-track {
-  animation-play-state: paused;
 }
 
 .lp-marquee-track .lp-feature-card,
