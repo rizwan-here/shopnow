@@ -3444,23 +3444,13 @@ code {
   width: max-content;
   gap: 1.1rem;
   padding: 0 1.1rem;
-  animation-name: lp-marquee-scroll;
-  animation-iteration-count: infinite;
+  animation: var(--marquee-name) var(--marquee-duration) infinite;
 }
 
 .lp-marquee-track .lp-feature-card,
 .lp-marquee-track .lp-testimonial-card {
   width: min(320px, 82vw);
   flex: 0 0 auto;
-}
-
-@keyframes lp-marquee-scroll {
-  from {
-    transform: translateX(0);
-  }
-  to {
-    transform: translateX(-50%);
-  }
 }
 
 @media (prefers-reduced-motion: reduce) {
