@@ -899,13 +899,34 @@ img {
 
 .customer-chat-bubble.assistant {
   justify-self: start;
-  background: linear-gradient(180deg, rgba(255,255,255,0.96) 0%, rgba(248,243,238,0.98) 100%);
+  background: linear-gradient(180deg, rgba(255,255,255,0.97) 0%, rgba(238,241,248,0.98) 100%);
 }
 
 .customer-chat-bubble.user {
   justify-self: end;
   background: linear-gradient(180deg, rgba(124,146,248,0.94) 0%, rgba(79,109,245,0.96) 100%);
   color: #ffffff;
+}
+
+/* Typing dots */
+.chat-typing-dots {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+.chat-typing-dots span {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--muted-2);
+  animation: chatDot 1.3s infinite ease-in-out;
+}
+.chat-typing-dots span:nth-child(2) { animation-delay: 0.2s; }
+.chat-typing-dots span:nth-child(3) { animation-delay: 0.4s; }
+@keyframes chatDot {
+  0%, 80%, 100% { transform: scale(0.7); opacity: 0.45; }
+  40% { transform: scale(1.05); opacity: 1; }
 }
 
 .customer-chat-form {

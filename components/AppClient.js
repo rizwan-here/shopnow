@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { signIn, signOut, useSession } from 'next-auth/react';
 import { ORDER_ACTIONS, ORDER_PROGRESS_STEPS, ORDER_STATUS_LABELS } from '@/lib/constants';
 import BrandMark from '@/components/BrandMark';
@@ -143,6 +143,13 @@ export default function AppClient({ initialData, initialMode = 'dashboard', stor
   const [showCheckout, setShowCheckout] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [productDetailSelection, setProductDetailSelection] = useState({ size: '', color: '', varietyName: '' });
+
+  // Chat widget state
+  const [chatOpen, setChatOpen] = useState(false);
+  const [chatMessages, setChatMessages] = useState([]);
+  const [chatInput, setChatInput] = useState('');
+  const [chatLoading, setChatLoading] = useState(false);
+  const chatListRef = useRef(null);
   const [toast, setToast] = useState('');
 
   const [productForm, setProductForm] = useState(createProductForm());
@@ -269,6 +276,23 @@ export default function AppClient({ initialData, initialMode = 'dashboard', stor
   const activeStoreSlug = storeSlugOverride || store?.profile?.slug || null;
   const storeCurrency = store?.profile?.currencyCode || 'BDT';
   const formatMoney = (value) => currency(value, storeCurrency);
+
+  // Auto-scroll chat list to bottom when messages change
+  useEffect(() => {
+    if (chatListRef.current) {
+      chatListRef.current.scrollTop = chatListRef.current.scrollHeight;
+    }
+  }, [chatMessages, chatLoading]);
+
+  // Seed a greeting when chat is first opened
+  useEffect(() => {
+    if (!chatOpen || chatMessages.length > 0) return;
+    const storeName = store?.profile?.storeName || 'this store';
+    setChatMessages([{
+      role: 'assistant',
+      content: `Hi! 👋 I'm the shopping assistant for ${storeName}. Ask me anything about our products — prices, sizes, delivery, or anything else!`
+    }]);
+  }, [chatOpen]);
 
   async function refreshStore(slug = activeStoreSlug) {
     const endpoint = slug ? `/api/bootstrap?slug=${encodeURIComponent(slug)}` : '/api/bootstrap';
@@ -1102,6 +1126,39 @@ export default function AppClient({ initialData, initialMode = 'dashboard', stor
     );
   }
 
+  async function sendChatMessage(event) {
+    event?.preventDefault();
+    const text = chatInput.trim();
+    if (!text || chatLoading) return;
+
+    const userMsg = { role: 'user', content: text };
+    setChatMessages((prev) => [...prev, userMsg]);
+    setChatInput('');
+    setChatLoading(true);
+
+    try {
+      const response = await fetch('/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          storeSlug: activeStoreSlug,
+          userMessage: text,
+          messages: chatMessages.slice(-8)
+        })
+      });
+      const data = await response.json();
+      if (!response.ok || data?.error) {
+        setChatMessages((prev) => [...prev, { role: 'assistant', content: `⚠️ Error: ${data?.error || 'Unknown error'}` }]);
+      } else {
+        setChatMessages((prev) => [...prev, { role: 'assistant', content: data.reply }]);
+      }
+    } catch (err) {
+      setChatMessages((prev) => [...prev, { role: 'assistant', content: `⚠️ Network error: ${err?.message || 'Could not reach server'}` }]);
+    } finally {
+      setChatLoading(false);
+    }
+  }
+
   function renderStorefront() {
     const selectedCategory = store.categories.find((category) => category._id === storefrontSelectedCategory);
     const q = storefrontSearchQuery.trim().toLowerCase();
@@ -1235,6 +1292,72 @@ export default function AppClient({ initialData, initialMode = 'dashboard', stor
 
 
         <StoreContactDock profile={store.profile} />
+
+        {/* AI Chat Widget */}
+        <div className="customer-chat-shell">
+          {chatOpen && (
+            <div className="customer-chat-panel soft-card">
+              <div className="customer-chat-head">
+                <div>
+                  <strong style={{ fontSize: '1rem' }}>
+                    {store.profile.profilePicture || store.profile.storeLogo
+                      ? <img src={store.profile.profilePicture || store.profile.storeLogo} alt="" style={{ width: 28, height: 28, borderRadius: '50%', objectFit: 'cover', verticalAlign: 'middle', marginRight: '0.45rem' }} />
+                      : null}
+                    {store.profile.storeName}
+                  </strong>
+                  <p className="muted" style={{ margin: '0.2rem 0 0', fontSize: '0.8rem' }}>AI Shopping Assistant</p>
+                </div>
+                <button
+                  className="soft-button-ghost"
+                  style={{ padding: '0.4rem 0.65rem', borderRadius: '50%', lineHeight: 1, fontSize: '1rem' }}
+                  onClick={() => setChatOpen(false)}
+                  aria-label="Close chat"
+                >
+                  ×
+                </button>
+              </div>
+
+              <div className="customer-chat-list" ref={chatListRef}>
+                {chatMessages.map((msg, idx) => (
+                  <div key={idx} className={`customer-chat-bubble ${msg.role}`}>
+                    {msg.content}
+                  </div>
+                ))}
+                {chatLoading && (
+                  <div className="customer-chat-bubble assistant">
+                    <span className="chat-typing-dots"><span /><span /><span /></span>
+                  </div>
+                )}
+              </div>
+
+              <form className="customer-chat-form" onSubmit={sendChatMessage}>
+                <input
+                  value={chatInput}
+                  onChange={(e) => setChatInput(e.target.value)}
+                  placeholder="Ask about products, sizes, delivery…"
+                  disabled={chatLoading}
+                  autoComplete="off"
+                />
+                <button
+                  className="soft-button"
+                  type="submit"
+                  disabled={chatLoading || !chatInput.trim()}
+                  style={{ borderRadius: '16px', padding: '0.85rem 1.1rem', whiteSpace: 'nowrap' }}
+                >
+                  Send
+                </button>
+              </form>
+            </div>
+          )}
+
+          <button
+            className="customer-chat-toggle"
+            onClick={() => setChatOpen((open) => !open)}
+            aria-label={chatOpen ? 'Close chat' : 'Open chat'}
+          >
+            {chatOpen ? '✕' : '💬'}
+          </button>
+        </div>
 
         <div className="container storefront-mini-footer">
           <p className="muted">{store.profile.bio}</p>
