@@ -1171,7 +1171,7 @@ export default function AppClient({ initialData, initialMode = 'dashboard', stor
 
     return (
       <div className="page-shell">
-        <div className="store-banner" style={{ backgroundImage: `url(${store.profile.storeBanner})` }}>
+        <div className="store-banner" style={{ backgroundImage: `url(${JSON.stringify(store.profile.storeBanner || '')})` }}>
           <div className="store-banner-content">
             {store.profile.profilePicture ? (
               <img src={store.profile.profilePicture} alt={store.profile.storeName} className="seller-avatar-circle" />

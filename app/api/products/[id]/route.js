@@ -2,13 +2,27 @@ import { NextResponse } from 'next/server';
 import { connectToDatabase } from '@/lib/mongodb';
 import Product from '@/models/Product';
 import { getCurrentStoreProfile } from '@/lib/auth-store';
+import { readJson, safeImageRef } from '@/lib/validators';
 
 export async function PATCH(request, { params }) {
   const { profile } = await getCurrentStoreProfile();
   if (!profile) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   await connectToDatabase();
-  const body = await request.json();
+  const body = await readJson(request);
+  if (!body) return NextResponse.json({ error: 'Invalid request body.' }, { status: 400 });
+  if (body.imageUrl !== undefined) {
+    const cleaned = safeImageRef(body.imageUrl || '');
+    if (cleaned === null) return NextResponse.json({ error: 'Invalid image URL.' }, { status: 400 });
+    body.imageUrl = cleaned;
+  }
+  if (Array.isArray(body.varieties)) {
+    for (const v of body.varieties) {
+      if (v && v.imageUrl && safeImageRef(v.imageUrl) === null) {
+        return NextResponse.json({ error: 'Invalid variety image URL.' }, { status: 400 });
+      }
+    }
+  }
 
   const product = await Product.findOneAndUpdate(
     { _id: params.id, storeSlug: profile.slug },
@@ -32,7 +46,7 @@ export async function PATCH(request, { params }) {
         ...(body.categoryIds !== undefined ? { categoryIds: body.categoryIds } : {})
       }
     },
-    { new: true }
+    { new: true, runValidators: true }
   );
 
   if (!product) return NextResponse.json({ error: 'Product not found' }, { status: 404 });
