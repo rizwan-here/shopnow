@@ -40,7 +40,7 @@ export async function POST(request) {
   const body = await readJson(request);
   if (!body) return badRequest('Invalid request body.');
 
-  const customerEmail = str(body.customerEmail, 254);
+  const customerEmail = str(body.customerEmail, 254).toLowerCase();
   if (!validateEmail(customerEmail)) return badRequest('A valid email address is required.');
 
   const customerName = str(body.customerName, 120);
