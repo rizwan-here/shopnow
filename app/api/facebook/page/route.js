@@ -30,7 +30,8 @@ export async function PATCH(request) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  const { pageId } = await request.json();
+  const body = await request.json().catch(() => ({}));
+  const pageId = typeof body.pageId === 'string' ? body.pageId : '';
   await connectToDatabase();
   const connection = await FacebookConnection.findOne({ ownerId: session.user.id });
   if (!connection) {
