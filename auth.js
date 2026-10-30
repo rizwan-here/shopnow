@@ -30,7 +30,9 @@ if (process.env.AUTH_FACEBOOK_ID && process.env.AUTH_FACEBOOK_SECRET) {
 export const { handlers, auth, signIn, signOut } = NextAuth({
   trustHost: true,
   session: {
-    strategy: 'jwt'
+    strategy: 'jwt',
+    maxAge: 60 * 60 * 24 * 7, // 7 days (library default is 30)
+    updateAge: 60 * 60 * 24
   },
   providers,
   callbacks: {

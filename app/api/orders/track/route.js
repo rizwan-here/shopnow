@@ -1,11 +1,16 @@
 import { NextResponse } from 'next/server';
 import { connectToDatabase } from '@/lib/mongodb';
+import { getClientIp, rateLimit, tooManyRequests } from '@/lib/rate-limit';
+import { str } from '@/lib/validators';
 import Order from '@/models/Order';
 
 export async function GET(request) {
+  const limited = rateLimit(`track:${getClientIp(request)}`, { limit: 20, windowMs: 10 * 60 * 1000 });
+  if (!limited.ok) return tooManyRequests(NextResponse, limited.retryAfter);
+
   const { searchParams } = new URL(request.url);
-  const orderNumber = (searchParams.get('orderNumber') || '').trim().toUpperCase();
-  const contact = (searchParams.get('contact') || '').trim();
+  const orderNumber = str(searchParams.get('orderNumber'), 40).toUpperCase();
+  const contact = str(searchParams.get('contact'), 254);
 
   if (!orderNumber || !contact) {
     return NextResponse.json({ error: 'Order number and phone or email are required.' }, { status: 400 });
@@ -19,7 +24,8 @@ export async function GET(request) {
   }
 
   const emailMatch = order.customerEmail && order.customerEmail.toLowerCase() === contact.toLowerCase();
-  const phoneMatch = order.customerPhone && order.customerPhone.replace(/\D/g, '') === contact.replace(/\D/g, '');
+  const contactDigits = contact.replace(/\D/g, '');
+  const phoneMatch = order.customerPhone && contactDigits.length >= 6 && order.customerPhone.replace(/\D/g, '') === contactDigits;
 
   if (!emailMatch && !phoneMatch) {
     return NextResponse.json({ error: 'Order number and contact details do not match.' }, { status: 403 });

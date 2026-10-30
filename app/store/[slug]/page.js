@@ -1,12 +1,14 @@
 import AppClient from '@/components/AppClient';
 import DatabaseSetupScreen from '@/components/DatabaseSetupScreen';
+import { auth } from '@/auth';
 import { getStorePayloadBySlug } from '@/lib/store-service';
 
 export const dynamic = 'force-dynamic';
 
 export default async function StorefrontPage({ params }) {
   try {
-    const initialData = await getStorePayloadBySlug(params.slug);
+    const session = await auth();
+    const initialData = await getStorePayloadBySlug(params.slug, session?.user?.id || null);
     if (!initialData) {
       return <DatabaseSetupScreen errorMessage="Store not found." />;
     }

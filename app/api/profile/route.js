@@ -3,6 +3,7 @@ import { connectToDatabase } from '@/lib/mongodb';
 import StoreProfile from '@/models/StoreProfile';
 import { getCurrentStoreProfile } from '@/lib/auth-store';
 import { slugify } from '@/lib/utils';
+import { readJson, safeHttpUrl, safeImageRef, str } from '@/lib/validators';
 
 export async function PATCH(request) {
   const { session, profile } = await getCurrentStoreProfile();
@@ -11,7 +12,24 @@ export async function PATCH(request) {
   }
 
   await connectToDatabase();
-  const body = await request.json();
+  const body = await readJson(request);
+  if (!body) return NextResponse.json({ error: 'Invalid request body.' }, { status: 400 });
+
+  // Only allow safe URL schemes (blocks javascript:, data:text/html, etc.) in stored links/images.
+  const urlRules = {
+    storeLogo: safeImageRef,
+    storeBanner: safeImageRef,
+    profilePicture: safeImageRef,
+    messengerUrl: (v) => (typeof v === 'string' ? safeHttpUrl(v) : null)
+  };
+  for (const [field, check] of Object.entries(urlRules)) {
+    if (body[field] === undefined || body[field] === null) continue;
+    const cleaned = check(body[field]);
+    if (cleaned === null) {
+      return NextResponse.json({ error: `Invalid URL for ${field}.` }, { status: 400 });
+    }
+    body[field] = cleaned;
+  }
   const doc = await StoreProfile.findOne({ ownerId: session.user.id });
 
   if (!doc) {
@@ -19,7 +37,7 @@ export async function PATCH(request) {
   }
 
   // Handle slug/username change
-  if (body.slug && body.slug !== doc.slug) {
+  if (typeof body.slug === 'string' && body.slug && body.slug !== doc.slug) {
     const newSlug = slugify(body.slug);
     if (!newSlug) return NextResponse.json({ error: 'Invalid username.' }, { status: 400 });
     const reserved = ['store', 'api', 'dashboard', 'login', 'signup'];

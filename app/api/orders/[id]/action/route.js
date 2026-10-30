@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { connectToDatabase } from '@/lib/mongodb';
 import Order from '@/models/Order';
 import { getCurrentStoreProfile } from '@/lib/auth-store';
+import { readJson, str } from '@/lib/validators';
 
 function normalizeStatus(status) {
   if (status === 'processing') return 'packed';
@@ -24,9 +25,9 @@ export async function POST(request, { params }) {
   if (!profile) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   await connectToDatabase();
-  const body = await request.json();
-  const action = body.action;
-  const mapped = ACTION_MAP[action];
+  const body = (await readJson(request)) || {};
+  const action = typeof body.action === 'string' ? body.action : '';
+  const mapped = Object.prototype.hasOwnProperty.call(ACTION_MAP, action) ? ACTION_MAP[action] : null;
 
   if (!mapped) {
     return NextResponse.json({ error: 'Unsupported order action' }, { status: 400 });
@@ -50,7 +51,7 @@ export async function POST(request, { params }) {
     {
       action,
       status: nextStatus,
-      note: body.note?.trim() || mapped.note,
+      note: str(body.note, 500) || mapped.note,
       createdAt: new Date()
     }
   ];

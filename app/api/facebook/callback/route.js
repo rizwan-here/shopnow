@@ -1,3 +1,4 @@
+import crypto from 'crypto';
 import { NextResponse } from 'next/server';
 import { connectToDatabase } from '@/lib/mongodb';
 import { requireSession } from '@/lib/auth-store';
@@ -7,11 +8,20 @@ function getBaseUrl() {
   return process.env.NEXT_PUBLIC_APP_URL || process.env.AUTH_URL || 'http://localhost:3000';
 }
 
+const NONCE_COOKIE = 'fb_oauth_nonce';
+const STATE_MAX_AGE_MS = 10 * 60 * 1000;
+
+function redirectTo(path, baseUrl) {
+  const response = NextResponse.redirect(new URL(path, baseUrl));
+  response.cookies.set(NONCE_COOKIE, '', { path: '/api/facebook', maxAge: 0 });
+  return response;
+}
+
 export async function GET(request) {
   const session = await requireSession();
   const baseUrl = getBaseUrl();
   if (!session?.user?.id) {
-    return NextResponse.redirect(new URL('/dashboard?facebook=login_required', baseUrl));
+    return redirectTo('/dashboard?facebook=login_required', baseUrl);
   }
 
   const { searchParams } = new URL(request.url);
@@ -20,18 +30,29 @@ export async function GET(request) {
   const error = searchParams.get('error') || searchParams.get('error_message');
 
   if (error || !code) {
-    return NextResponse.redirect(new URL(`/dashboard?facebook=oauth_error`, baseUrl));
+    return redirectTo('/dashboard?facebook=oauth_error', baseUrl);
   }
 
+  // State is mandatory and must match the nonce cookie set when the flow started.
+  if (!state) {
+    return redirectTo('/dashboard?facebook=state_invalid', baseUrl);
+  }
   try {
-    if (state) {
-      const parsedState = JSON.parse(Buffer.from(state, 'base64url').toString('utf8'));
-      if (parsedState.userId !== session.user.id) {
-        return NextResponse.redirect(new URL('/dashboard?facebook=state_mismatch', baseUrl));
-      }
+    const parsedState = JSON.parse(Buffer.from(state, 'base64url').toString('utf8'));
+    const cookieNonce = request.cookies.get(NONCE_COOKIE)?.value || '';
+    const nonceOk =
+      typeof parsedState.nonce === 'string' &&
+      cookieNonce.length > 0 &&
+      parsedState.nonce.length === cookieNonce.length &&
+      crypto.timingSafeEqual(Buffer.from(parsedState.nonce), Buffer.from(cookieNonce));
+    if (!nonceOk || Date.now() - Number(parsedState.ts) > STATE_MAX_AGE_MS) {
+      return redirectTo('/dashboard?facebook=state_mismatch', baseUrl);
+    }
+    if (parsedState.userId !== session.user.id) {
+      return redirectTo('/dashboard?facebook=state_mismatch', baseUrl);
     }
   } catch {
-    return NextResponse.redirect(new URL('/dashboard?facebook=state_invalid', baseUrl));
+    return redirectTo('/dashboard?facebook=state_invalid', baseUrl);
   }
 
   try {
@@ -56,7 +77,7 @@ export async function GET(request) {
       : [];
 
     if (!pages.length) {
-      return NextResponse.redirect(new URL('/dashboard?facebook=no_pages', baseUrl));
+      return redirectTo('/dashboard?facebook=no_pages', baseUrl);
     }
 
     await connectToDatabase();
@@ -76,8 +97,8 @@ export async function GET(request) {
       { upsert: true, new: true }
     );
 
-    return NextResponse.redirect(new URL('/dashboard?facebook=connected&tab=settings', baseUrl));
+    return redirectTo('/dashboard?facebook=connected&tab=settings', baseUrl);
   } catch {
-    return NextResponse.redirect(new URL('/dashboard?facebook=connect_failed', baseUrl));
+    return redirectTo('/dashboard?facebook=connect_failed', baseUrl);
   }
 }

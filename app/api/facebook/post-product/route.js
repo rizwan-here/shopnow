@@ -41,7 +41,9 @@ export async function POST(request) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  const { productId, caption: captionOverride } = await request.json();
+  const payload = await request.json().catch(() => ({}));
+  const productId = typeof payload.productId === 'string' ? payload.productId : '';
+  const captionOverride = typeof payload.caption === 'string' ? payload.caption.slice(0, 2000) : '';
   if (!productId) {
     return NextResponse.json({ error: 'Product ID is required' }, { status: 400 });
   }

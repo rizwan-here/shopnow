@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getCurrentStoreProfile } from '@/lib/auth-store';
 import { connectToDatabase } from '@/lib/mongodb';
+import { readJson, str } from '@/lib/validators';
 import Subscription from '@/models/Subscription';
 
 // GET  /api/subscription  → returns the caller's subscription record
@@ -39,7 +40,7 @@ export async function PATCH(request) {
   }
 
   await connectToDatabase();
-  const body = await request.json().catch(() => ({}));
+  const body = (await readJson(request)) || {};
 
   let sub = await Subscription.findOne({ ownerId: session.user.id });
   if (!sub) {
@@ -50,24 +51,44 @@ export async function PATCH(request) {
     });
   }
 
-  // ── AdSense config update (any plan can configure, but ads only show on free)
-  if (body.adsensePublisherId !== undefined) sub.adsensePublisherId = body.adsensePublisherId.trim();
-  if (body.adsenseBannerSlot  !== undefined) sub.adsenseBannerSlot  = body.adsenseBannerSlot.trim();
-  if (body.adsenseGridSlot    !== undefined) sub.adsenseGridSlot    = body.adsenseGridSlot.trim();
+  // ── AdSense config update (any plan can configure, but ads only show on free).
+  // IDs are validated so arbitrary strings cannot be stored and later rendered into ad markup.
+  const publisherOk = (v) => v === '' || /^ca-pub-\d{10,20}$/.test(v);
+  const slotOk = (v) => v === '' || /^\d{5,20}$/.test(v) || v === 'REPLACE_WITH_YOUR_SLOT_ID';
+  if (body.adsensePublisherId !== undefined) {
+    const v = str(body.adsensePublisherId, 40);
+    if (!publisherOk(v)) return NextResponse.json({ error: 'Invalid AdSense publisher ID (expected ca-pub-…).' }, { status: 400 });
+    sub.adsensePublisherId = v;
+  }
+  if (body.adsenseBannerSlot !== undefined) {
+    const v = str(body.adsenseBannerSlot, 40);
+    if (!slotOk(v)) return NextResponse.json({ error: 'Invalid AdSense banner slot ID.' }, { status: 400 });
+    sub.adsenseBannerSlot = v;
+  }
+  if (body.adsenseGridSlot !== undefined) {
+    const v = str(body.adsenseGridSlot, 40);
+    if (!slotOk(v)) return NextResponse.json({ error: 'Invalid AdSense grid slot ID.' }, { status: 400 });
+    sub.adsenseGridSlot = v;
+  }
 
-  // ── Pro upgrade request — seller submits payment reference for manual review
+  // ── Manual Pro upgrade request.
+  // SECURITY: this used to set plan='pro' for 30 days for ANY non-empty reference,
+  // i.e. free Pro for everyone. A reference alone is not proof of payment, so the
+  // request is now only recorded for manual review. Pro is granted exclusively by the
+  // signature-verified Paddle webhook (/api/paddle/webhook) or by an admin in the DB.
   if (body.action === 'request_pro') {
-    const ref = String(body.paymentRef || '').trim();
+    const ref = str(body.paymentRef, 200);
     if (!ref) {
       return NextResponse.json({ error: 'Payment reference is required.' }, { status: 400 });
     }
-    sub.paymentRef  = ref;
-    sub.paymentNote = String(body.paymentNote || '').trim();
-    // Mark as "pending_pro" via a note — admin confirms manually via DB or future admin panel
-    // For now we optimistically set pro for 30 days (admin can revert if payment fails)
-    sub.plan           = 'pro';
-    sub.proActivatedAt = new Date();
-    sub.proExpiresAt   = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000); // +30 days
+    sub.paymentRef = ref;
+    sub.paymentNote = str(body.paymentNote, 500);
+    await sub.save();
+    const isProActiveNow = sub.plan === 'pro' && sub.proExpiresAt && new Date() < new Date(sub.proExpiresAt);
+    return NextResponse.json(
+      { ...sub.toObject(), isProActive: Boolean(isProActiveNow), pendingReview: true, message: 'Request received. Pro is activated after payment is verified.' },
+      { status: 202 }
+    );
   }
 
   await sub.save();

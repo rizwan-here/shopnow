@@ -2,15 +2,16 @@ import { NextResponse } from 'next/server';
 import { connectToDatabase } from '@/lib/mongodb';
 import Order from '@/models/Order';
 import { getCurrentStoreProfile } from '@/lib/auth-store';
+import { readJson, str } from '@/lib/validators';
 
 export async function PATCH(request, { params }) {
   const { profile } = await getCurrentStoreProfile();
   if (!profile) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   await connectToDatabase();
-  const body = await request.json();
+  const body = (await readJson(request)) || {};
   const order = await Order.findOneAndUpdate(
     { _id: params.id, storeSlug: profile.slug },
-    { $set: { ...(body.sellerNote !== undefined ? { sellerNote: body.sellerNote } : {}) } },
+    { $set: { ...(body.sellerNote !== undefined ? { sellerNote: str(body.sellerNote, 2000) } : {}) } },
     { new: true }
   );
   if (!order) return NextResponse.json({ error: 'Order not found' }, { status: 404 });

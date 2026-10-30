@@ -2,6 +2,7 @@ import crypto from 'crypto';
 import { NextResponse } from 'next/server';
 import { auth } from '@/auth';
 import { connectToDatabase } from '@/lib/mongodb';
+import { rateLimit, tooManyRequests } from '@/lib/rate-limit';
 import StoreProfile from '@/models/StoreProfile';
 
 export const runtime = 'nodejs';
@@ -10,6 +11,22 @@ const MAX_IMAGE_SIZE_BYTES = 8 * 1024 * 1024; // 8MB keeps uploads friendly for 
 
 function sanitizeSegment(value = '') {
   return String(value).replace(/[^a-zA-Z0-9_-]/g, '').toLowerCase() || 'file';
+}
+
+// Detect real raster image types from the file's magic bytes. The client-supplied
+// file.type is attacker-controlled, and SVG (which can carry scripts) is not allowed.
+function detectImageType(bytes) {
+  const b = bytes;
+  if (b.length >= 3 && b[0] === 0xff && b[1] === 0xd8 && b[2] === 0xff) return 'jpeg';
+  if (b.length >= 8 && b[0] === 0x89 && b[1] === 0x50 && b[2] === 0x4e && b[3] === 0x47) return 'png';
+  if (b.length >= 6 && String.fromCharCode(...b.slice(0, 4)) === 'GIF8') return 'gif';
+  if (b.length >= 12 && String.fromCharCode(...b.slice(0, 4)) === 'RIFF' && String.fromCharCode(...b.slice(8, 12)) === 'WEBP') return 'webp';
+  if (b.length >= 12 && String.fromCharCode(...b.slice(4, 8)) === 'ftyp') {
+    const brand = String.fromCharCode(...b.slice(8, 12));
+    if (['avif', 'avis'].includes(brand)) return 'avif';
+    if (['heic', 'heix', 'hevc', 'mif1', 'msf1'].includes(brand)) return 'heic';
+  }
+  return null;
 }
 
 function getCloudinaryConfig() {
@@ -38,6 +55,9 @@ export async function POST(request) {
   if (!session?.user?.id) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
+
+  const limited = rateLimit(`upload:${session.user.id}`, { limit: 40, windowMs: 10 * 60 * 1000 });
+  if (!limited.ok) return tooManyRequests(NextResponse, limited.retryAfter);
 
   await connectToDatabase();
   const profile = await StoreProfile.findOne({ ownerId: session.user.id });
@@ -71,6 +91,11 @@ export async function POST(request) {
 
   if (file.size > MAX_IMAGE_SIZE_BYTES) {
     return NextResponse.json({ error: 'Image is too large. Please upload an image smaller than 8MB.' }, { status: 400 });
+  }
+
+  const head = new Uint8Array(await file.slice(0, 16).arrayBuffer());
+  if (!detectImageType(head)) {
+    return NextResponse.json({ error: 'Unsupported image. Please upload a JPG, PNG, GIF, WebP or AVIF image.' }, { status: 400 });
   }
 
   const timestamp = Math.floor(Date.now() / 1000);
