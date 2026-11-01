@@ -3761,3 +3761,244 @@ code {
 
 .lp-quick-links a:hover { opacity: 0.75; }
 
+
+/* =====================================================================
+   UX / responsive fixes
+   (appended last so these win the cascade over earlier equal-specificity rules)
+   ===================================================================== */
+
+/* --- Checkout / stacked forms: fields fill the card instead of shrink-wrapping
+       and centering (.form-grid is flex + align-items:center). --- */
+/* desktop (2-column grid): top-align fields so rows line up instead of floating/centering */
+.form-grid[style*="flex-direction: column"] {
+  align-items: start;
+}
+/* phones (single column flex): stretch so every field fills the card */
+@media (max-width: 768px) {
+  .form-grid[style*="flex-direction: column"] {
+    align-items: stretch;
+  }
+}
+.dashboard-form-stack .field {
+  width: 100%;
+  min-width: 0;
+}
+
+/* --- Floating WhatsApp/Messenger dock must sit BELOW modals/drawers (z-index 50) --- */
+.contact-dock {
+  z-index: 40;
+}
+@media (max-width: 700px) {
+  .contact-dock {
+    right: 0.75rem;
+    bottom: calc(0.75rem + env(safe-area-inset-bottom, 0px));
+    gap: 0.5rem;
+  }
+  /* keep the last row of content from hiding behind the dock */
+  body:has(.contact-dock) .page-shell {
+    padding-bottom: calc(5.5rem + env(safe-area-inset-bottom, 0px));
+  }
+}
+
+/* --- Toast: don't cover the dock/footer on phones --- */
+@media (max-width: 700px) {
+  .toast {
+    top: calc(env(safe-area-inset-top, 0px) + 0.75rem);
+    bottom: auto;
+    max-width: calc(100% - 2rem);
+    text-align: center;
+  }
+}
+
+/* --- Product price row: wrap instead of clipping the struck-through price --- */
+.price-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.1rem 0.5rem;
+}
+.price-compare {
+  font-size: 0.9em;
+  white-space: nowrap;
+}
+
+/* --- Product card title row: "Featured" badge wraps under the title
+       instead of squeezing the name into a sliver --- */
+.product-card .card-body .inline-row {
+  flex-wrap: wrap;
+  gap: 0.35rem 0.5rem;
+}
+.product-card .card-body .inline-row > h3 {
+  flex: 1 1 8rem;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.product-card .card-body .inline-row > .tag {
+  white-space: nowrap;
+}
+
+/* --- Store banner: stronger bottom scrim so the white store name stays
+       readable on any seller-supplied banner --- */
+.store-banner::after {
+  background: linear-gradient(180deg, rgba(30, 20, 12, 0.08) 0%, rgba(30, 20, 12, 0.62) 100%);
+}
+.store-banner-content h1,
+.store-banner-content p {
+  text-shadow: 0 1px 8px rgba(0, 0, 0, 0.35);
+}
+
+/* --- Product detail title: shown in the info panel on phones only
+       (on desktop the modal header already shows it) --- */
+.detail-title {
+  display: none;
+}
+
+/* --- Text never below 12px --- */
+.mini-link-label,
+.brand-mark-tagline {
+  font-size: 0.75rem;
+}
+
+@media (max-width: 768px) {
+  /* Blank 320px gap: flex-basis acts as HEIGHT inside a column layout */
+  .dashboard-search,
+  .dashboard-toolbar > :first-child {
+    flex: 0 0 auto;
+    width: 100%;
+  }
+  .section-head[style*="flex-end"] {
+    align-items: stretch !important;
+  }
+  .section-head .field[style*="min-width"] {
+    min-width: 0 !important;
+    width: 100%;
+  }
+
+  /* Dashboard tabs: one scrollable row, comfortable tap size, readable text */
+  .dashboard-tabs {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    gap: 1.1rem;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+  }
+  .dashboard-tabs::-webkit-scrollbar {
+    display: none;
+  }
+  /* fade the right edge so it's obvious the tab row scrolls (Orders/Analytics/Settings) */
+  .dashboard-tabs {
+    -webkit-mask-image: linear-gradient(90deg, #000 92%, transparent 100%);
+    mask-image: linear-gradient(90deg, #000 92%, transparent 100%);
+  }
+  /* end spacer so the last tab can scroll fully clear of the fade */
+  .dashboard-tabs::after {
+    content: "";
+    flex: 0 0 2rem;
+  }
+  .dashboard-tab {
+    flex: 0 0 auto;
+    min-height: 44px;
+    padding: 0.7rem 0.15rem;
+    font-size: 0.875rem;
+  }
+
+  /* Dashboard header actions: Copy link / Logout side by side, not two giant stacked buttons */
+  .header-actions {
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.6rem;
+  }
+  .header-actions .store-link-compact {
+    flex: 1 1 100%;
+  }
+  .header-actions > button {
+    flex: 1 1 0;
+    min-height: 44px;
+  }
+
+  /* Product detail sheet on phones */
+  .product-detail-modal .modal-card {
+    height: 100dvh;
+    max-height: 100dvh;
+  }
+  .product-detail-modal .product-detail-image,
+  .product-detail-modal .image-placeholder {
+    aspect-ratio: 1 / 1;
+    max-height: 46dvh;
+    width: 100%;
+    object-fit: cover;
+  }
+  .product-detail-modal .drawer-header button {
+    width: 2.75rem;
+    height: 2.75rem;
+    /* cancel the generic cart-drawer rule (top:50% + translateY(-50%)) that pushed the X off the top edge */
+    top: auto;
+    left: auto;
+    transform: none;
+  }
+  /* true full-screen sheet (the generic centered-modal adds 1rem padding) */
+  .centered-modal.product-detail-modal {
+    padding: 0;
+  }
+  /* sticky "Add to cart" gets a solid backing so swatches don't show through it */
+  .product-detail-modal .product-detail-info > button.soft-button:last-child {
+    box-shadow: 0 0 0 0.6rem #ffffff, 0 -0.5rem 1rem 0.6rem #ffffff;
+  }
+  .detail-title {
+    display: block;
+    margin: 0 0 0.35rem;
+    font-size: 1.25rem;
+    line-height: 1.25;
+  }
+}
+
+/* --- Touch targets >= 44px for coarse pointers / small screens --- */
+@media (pointer: coarse), (max-width: 768px) {
+  .badge-button,
+  .soft-button,
+  .soft-button-ghost,
+  .soft-button-secondary {
+    min-height: 44px;
+  }
+  .badge-button {
+    display: inline-flex;
+    align-items: center;
+  }
+  .brand-mark {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+  }
+  .global-footer-links a,
+  .lp-footer-links a,
+  .landing-nav-links a {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+    padding: 0 0.35rem;
+  }
+  .lp-quick-links a,
+  .lp-contact-card a {
+    display: flex;
+    align-items: center;
+    min-height: 44px;
+  }
+  .lp-contact-email {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+  }
+  /* wrap the footer link row nicely now that links are taller */
+  .lp-footer-links,
+  .global-footer-links,
+  .landing-nav-links {
+    flex-wrap: wrap;
+    gap: 0 0.5rem;
+  }
+}
+
+/* modal height should track the visible viewport on mobile browsers */
+.modal-card {
+  max-height: calc(100dvh - 2rem);
+}
