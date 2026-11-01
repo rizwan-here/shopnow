@@ -1082,9 +1082,9 @@ export default function AppClient({ initialData, initialMode = 'dashboard', stor
             <h3 style={{ margin: 0 }}>{product.name}</h3>
             {product.featured ? <span className="tag">Featured</span> : null}
           </div>
-          <div style={{ marginTop: '0.4rem' }}>
+          <div className="price-row" style={{ marginTop: '0.4rem' }}>
             <strong>{formatMoney(product.price)}</strong>
-            {Number(product.compareAtPrice || 0) > Number(product.price || 0) ? <span className="muted" style={{ marginLeft: '0.45rem', textDecoration: 'line-through' }}>{formatMoney(product.compareAtPrice)}</span> : null}
+            {Number(product.compareAtPrice || 0) > Number(product.price || 0) ? <span className="muted price-compare" style={{ textDecoration: 'line-through' }}>{formatMoney(product.compareAtPrice)}</span> : null}
           </div>
           <p className="muted">{product.shortDescription || (compact ? 'Tap to view details.' : product.description || 'Click to edit this product.')}</p>
           <div className="tag-row" style={{ marginTop: '0.7rem' }}>
@@ -1219,6 +1219,8 @@ export default function AppClient({ initialData, initialMode = 'dashboard', stor
           <div style={{ marginBottom: '1rem' }}>
             <input
               className="storefront-search-input"
+              aria-label="Search products"
+              type="search"
               value={storefrontSearchQuery}
               onChange={(e) => setStorefrontSearchQuery(e.target.value)}
               placeholder="Search products…"
@@ -1423,6 +1425,7 @@ export default function AppClient({ initialData, initialMode = 'dashboard', stor
               <div className="responsive-stack dashboard-search">
                 <input
                   className="dashboard-search-input"
+                  aria-label="Search products"
                   value={searchProductQuery}
                   onChange={(event) => setSearchProductQuery(event.target.value)}
                   placeholder="Search products"
@@ -2815,6 +2818,7 @@ export default function AppClient({ initialData, initialMode = 'dashboard', stor
                 <label className="field">
                   <span>Full name</span>
                   <input
+                    autoComplete="name"
                     value={checkoutForm.name}
                     onChange={(event) => setCheckoutForm((current) => ({ ...current, name: event.target.value }))}
                   />
@@ -2823,6 +2827,8 @@ export default function AppClient({ initialData, initialMode = 'dashboard', stor
                   <span>Email</span>
                   <input
                     type="email"
+                    autoComplete="email"
+                    inputMode="email"
                     value={checkoutForm.email}
                     onChange={(event) => setCheckoutForm((current) => ({ ...current, email: event.target.value }))}
                     placeholder="you@example.com"
@@ -2832,6 +2838,9 @@ export default function AppClient({ initialData, initialMode = 'dashboard', stor
                 <label className="field">
                   <span>Phone number</span>
                   <input
+                    type="tel"
+                    autoComplete="tel"
+                    inputMode="tel"
                     value={checkoutForm.phone}
                     onChange={(event) => setCheckoutForm((current) => ({ ...current, phone: event.target.value }))}
                   />
@@ -2839,6 +2848,7 @@ export default function AppClient({ initialData, initialMode = 'dashboard', stor
                 <label className="field">
                   <span>Shipping address</span>
                   <textarea
+                    autoComplete="street-address"
                     value={checkoutForm.address}
                     onChange={(event) => setCheckoutForm((current) => ({ ...current, address: event.target.value }))}
                   />
@@ -2902,6 +2912,7 @@ export default function AppClient({ initialData, initialMode = 'dashboard', stor
                   )}
                 </div>
                 <div className="product-detail-info">
+                  <h2 className="detail-title">{selectedProduct.name}</h2>
                   <div>
                     <strong className="detail-price">{formatMoney(selectedProduct.price)}</strong>
                     {Number(selectedProduct.compareAtPrice || 0) > Number(selectedProduct.price || 0) ? <span className="muted" style={{ marginLeft: '0.5rem', textDecoration: 'line-through' }}>{formatMoney(selectedProduct.compareAtPrice)}</span> : null}
@@ -3324,7 +3335,7 @@ export default function AppClient({ initialData, initialMode = 'dashboard', stor
         </Modal>
       )}
 
-            {toast && <div className="toast">{toast}</div>}
+            {toast && <div className="toast" role="status" aria-live="polite">{toast}</div>}
 
       {/* ── Order Confirmation Screen ── */}
       {showOrderConfirmation && placedOrder && (
